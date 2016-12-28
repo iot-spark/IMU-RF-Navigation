@@ -1,9 +1,8 @@
-import {HashLocationStrategy, Location, LocationStrategy} from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 
 @Component({
   selector: 'app-markdown',
-  providers: [Location, {provide: LocationStrategy, useClass: HashLocationStrategy}],
+  providers: [],
   templateUrl: './markdown.component.html',
   styleUrls: ['./markdown.component.css']
 })
