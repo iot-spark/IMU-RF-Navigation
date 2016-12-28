@@ -6,6 +6,8 @@ import { HttpModule } from '@angular/http';
 import { RouterModule } from '@angular/router';
 
 import { routes } from './app.routes';
+
+import { MarkdownModule } from 'angular2-markdown';
 import { AppComponent } from './app.component';
 import { MarkdownComponent } from './markdown/markdown.component';
 import { HomeComponent } from './home/home.component';
@@ -18,6 +20,7 @@ import { HomeComponent } from './home/home.component';
   ],
   imports: [
     RouterModule.forRoot(routes),
+    MarkdownModule,
     BrowserModule,
     FormsModule,
     HttpModule
