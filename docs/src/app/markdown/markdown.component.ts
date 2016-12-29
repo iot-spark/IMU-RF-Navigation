@@ -50,7 +50,7 @@ export class MarkdownComponent implements OnInit, OnDestroy {
       
       console.log('MarkdownComponent >> OnInit >> MD Path: ', this.mdPath);
 
-      let fullPath = window.location.origin + this.mdPath;
+      let fullPath = window.location.origin + window.location.pathname + this.mdPath;
 
       console.log('MarkdownComponent >> OnInit >> Location Path: ', this.location.path(false));
 
