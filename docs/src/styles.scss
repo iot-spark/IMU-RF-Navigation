@@ -1,8 +1,10 @@
 /* You can add global styles to this file, and also import other style files */
+@import '../node_modules/@angular/material/core/theming/_palette';
 
 body{
     margin: 0;
     padding: 0;
+    background-color: map-get($md-blue-grey, 200);
 }
 
 body, .app-root-container{

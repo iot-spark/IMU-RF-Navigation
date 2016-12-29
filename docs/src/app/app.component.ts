@@ -1,6 +1,8 @@
 import { Component, Input } from '@angular/core';
 import { MdSidenav, MdButton } from '@angular/material'
 
+require('../theme.scss');
+
 @Component({
   selector: 'app-root',
   providers: [],
