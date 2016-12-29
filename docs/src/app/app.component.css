@@ -1,1 +1,21 @@
-@import '/app/theme/materials.css'
+.main-container{
+    display: flex;
+    flex-direction: row;
+    flex: 1 1;
+    width: 1vw;
+}
+
+.page-container, .sidebar-container{
+    display: flex;
+    flex-direction: column;
+}
+
+.page-container{
+    width: calc(1vw - 150px);    
+}
+
+.sidebar-container{
+    width: 150px;
+    background-color: rgba(200, 64, 128, 0.3);
+    padding: 3px;
+}

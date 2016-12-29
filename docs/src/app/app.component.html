@@ -1,5 +1,9 @@
-<a [routerLink]="['/']">Home</a>
-<a [routerLink]="['/md', {file: '\/assets\/posts\/demo.md'}]">Markdown</a>
-<div class="outer-outlet">
-  <router-outlet></router-outlet>
+
+<div class="main-container outer-outlet">
+  <router-outlet class="page-container"></router-outlet>
+
+  <div class="sidebar-container">
+    <button [routerLink]="['/']" md-raised-button color="accent">Home</button>
+    <button [routerLink]="['/md', {file: '\/assets\/posts\/demo.md'}]" md-raised-button color="primary">Demo Post</button>
+  </div>
 </div>

@@ -8,7 +8,7 @@
     {
         "label": "Demo Post",
         "url": "/md",
-        "params": {"file": "demo.md"},
+        "params": {"file": "/assets/posts/demo.md"},
         "children": []
     }    
 ]
