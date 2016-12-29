@@ -1,0 +1,14 @@
+[
+    {
+        "label": "Home",
+        "url": "/",
+        "params": {},
+        "children": []
+    },
+    {
+        "label": "Demo Post",
+        "url": "/md",
+        "params": {"file": "/assets/posts/demo.md"},
+        "children": []
+    }    
+]
