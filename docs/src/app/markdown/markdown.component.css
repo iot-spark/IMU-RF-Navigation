@@ -2,7 +2,9 @@
     display: flex;
     flex-direction: column;
     flex: 1;
-    height: 100vh;
+    height: calc(100vh - 10px);
+    width: calc(100vw - 150px);
     background-color: rgba(64, 200, 128, 0.3);
     padding: 5px;
+    overflow-y: auto;
 }

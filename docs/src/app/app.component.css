@@ -2,16 +2,12 @@
     display: flex;
     flex-direction: row;
     flex: 1 1;
-    width: 1vw;
+    width: 100vw;
 }
 
-.page-container, .sidebar-container{
+.sidebar-container{
     display: flex;
     flex-direction: column;
-}
-
-.page-container{
-    width: calc(1vw - 150px);    
 }
 
 .sidebar-container{
