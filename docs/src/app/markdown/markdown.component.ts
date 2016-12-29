@@ -1,4 +1,5 @@
 import { Component, ElementRef, OnInit, OnDestroy } from '@angular/core';
+import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { Http } from '@angular/http';
 
@@ -27,7 +28,10 @@ export class MarkdownComponent implements OnInit, OnDestroy {
   private mdPath: string;
   private sub: any;
 
-  constructor(private el: ElementRef, private route: ActivatedRoute, private http: Http) { 
+  constructor(
+    private el: ElementRef, private route: ActivatedRoute, 
+    private http: Http, private location: Location) { 
+      
       this.el = el;
       this.md = '### hello from .ctor! ###';
 
@@ -46,7 +50,11 @@ export class MarkdownComponent implements OnInit, OnDestroy {
       
       console.log('MarkdownComponent >> OnInit >> MD Path: ', this.mdPath);
 
-      this.http.get(this.mdPath).toPromise().then(resp => {
+      let fullPath = window.location.origin + this.mdPath;
+
+      console.log('MarkdownComponent >> OnInit >> Location Path: ', this.location.path(false));
+
+      this.http.get(fullPath).toPromise().then(resp => {
             this.md = resp.text();
             this.el.nativeElement.innerHTML = marked(this.md);
              Prism.highlightAll(false);
