@@ -119,7 +119,7 @@ var MarkdownComponent = (function () {
         this.sub = this.route.params.subscribe(function (params) {
             _this.mdPath = params['file'];
             console.log('MarkdownComponent >> OnInit >> MD Path: ', _this.mdPath);
-            var fullPath = window.location.origin + _this.mdPath;
+            var fullPath = window.location.origin + window.location.pathname + _this.mdPath;
             console.log('MarkdownComponent >> OnInit >> Location Path: ', fullPath);
             _this.http.get(fullPath).toPromise().then(function (resp) {
                 _this.md = resp.text();
