@@ -120,7 +120,7 @@ var MarkdownComponent = (function () {
             _this.mdPath = params['file'];
             console.log('MarkdownComponent >> OnInit >> MD Path: ', _this.mdPath);
             var fullPath = window.location.origin + _this.mdPath;
-            console.log('MarkdownComponent >> OnInit >> Location Path: ', _this.location.path(false));
+            console.log('MarkdownComponent >> OnInit >> Location Path: ', fullPath);
             _this.http.get(fullPath).toPromise().then(function (resp) {
                 _this.md = resp.text();
                 _this.el.nativeElement.innerHTML = __WEBPACK_IMPORTED_MODULE_6_marked__(_this.md);
