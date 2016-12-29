@@ -6,6 +6,8 @@ import { Http } from '@angular/http';
 import 'rxjs/Rx';
 import 'rxjs/add/operator/toPromise';
 
+import { MarkdownService } from './markdown.service';
+
 import * as  marked  from 'marked';
 
 import 'prismjs/prism';
@@ -19,7 +21,7 @@ import 'prismjs/components/prism-scss';
 
 @Component({
   selector: 'app-markdown',
-  providers: [],
+  providers: [MarkdownService],
   templateUrl: './markdown.component.html',
   styleUrls: ['./markdown.component.css']
 })
@@ -30,18 +32,10 @@ export class MarkdownComponent implements OnInit, OnDestroy {
 
   constructor(
     private el: ElementRef, private route: ActivatedRoute, 
-    private http: Http, private location: Location) { 
+    private http: Http, private location: Location,
+    private service: MarkdownService) { 
       
       this.el = el;
-      this.md = '### hello from .ctor! ###';
-
-      let timeoutId = setTimeout(() => {  
-        console.log('hello from .ctor');
-
-        this.md = '### hello from .ctor w/ delay! ###';
-
-        clearTimeout(timeoutId);
-      }, 100);
   }
 
   ngOnInit() {
@@ -50,16 +44,12 @@ export class MarkdownComponent implements OnInit, OnDestroy {
       
       console.log('MarkdownComponent >> OnInit >> MD Path: ', this.mdPath);
 
-      let fullPath = window.location.origin + window.location.pathname + this.mdPath;
-
-      console.log('MarkdownComponent >> OnInit >> Location Path: ', this.location.path(false));
-
-      this.http.get(fullPath).toPromise().then(resp => {
-            this.md = resp.text();
-            this.el.nativeElement.innerHTML = marked(this.md);
-             Prism.highlightAll(false);
-        })
-        .catch(this.handleError);
+      this.service.getRelativeContent(this.mdPath).then(resp => {
+        this.md = resp.text();
+        this.el.nativeElement.innerHTML = marked(this.md);
+        Prism.highlightAll(false);
+      })
+      .catch(this.handleError);
     });
   }
 
