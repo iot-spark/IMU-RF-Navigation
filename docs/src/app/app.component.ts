@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
+import { MdSidenav, MdButton } from '@angular/material'
 
 @Component({
   selector: 'app-root',
@@ -7,9 +8,11 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'app works!';
+  @Input() title: string;
   
-  constructor() { }
+  constructor() { 
+    this.title = 'app works!';
+  }
 
   
 }

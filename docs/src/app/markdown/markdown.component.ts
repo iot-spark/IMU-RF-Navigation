@@ -1,4 +1,9 @@
-import { Component, ElementRef, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, OnDestroy } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { Http } from '@angular/http';
+
+import 'rxjs/Rx';
+import 'rxjs/add/operator/toPromise';
 
 import * as  marked  from 'marked';
 
@@ -17,10 +22,12 @@ import 'prismjs/components/prism-scss';
   templateUrl: './markdown.component.html',
   styleUrls: ['./markdown.component.css']
 })
-export class MarkdownComponent implements OnInit {
+export class MarkdownComponent implements OnInit, OnDestroy {
   md = '## Markdown Works! ##';
+  private mdPath: string;
+  private sub: any;
 
-  constructor(private el: ElementRef) { 
+  constructor(private el: ElementRef, private route: ActivatedRoute, private http: Http) { 
       this.el = el;
       this.md = '### hello from .ctor! ###';
 
@@ -34,16 +41,29 @@ export class MarkdownComponent implements OnInit {
   }
 
   ngOnInit() {
-    let timeoutId = setTimeout(() => {  
-      console.log('hello from OnInit');
+    this.sub = this.route.params.subscribe(params => {
+      this.mdPath = params['file'];
+      
+      console.log('MarkdownComponent >> OnInit >> MD Path: ', this.mdPath);
 
-      this.md = '### hello! ###';
-      this.el.nativeElement.innerHTML = marked('### hello from OnInit w/ delay! ###');
-
-      clearTimeout(timeoutId);
-    }, 2000);
-
-
+      this.http.get(this.mdPath).toPromise().then(resp => {
+            this.md = resp.text();
+            this.el.nativeElement.innerHTML = marked(this.md);
+             Prism.highlightAll(false);
+        })
+        .catch(this.handleError);
+    });
   }
 
+  ngOnDestroy(){
+    this.sub.unsubscribe();
+  }
+
+  /**
+   * catch http error
+   */
+  private handleError(error: any): Promise<any> {
+        console.error('An error occurred', error); // for demo purposes only
+        return Promise.reject(error.message || error);
+  }
 }

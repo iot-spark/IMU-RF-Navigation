@@ -5,6 +5,9 @@ import { FormsModule } from '@angular/forms';
 import { HttpModule } from '@angular/http';
 import { RouterModule } from '@angular/router';
 
+import 'hammerjs';
+import { MaterialModule } from '@angular/material';
+
 import { routes } from './app.routes';
 
 import { MarkdownModule } from 'angular2-markdown';
@@ -20,6 +23,7 @@ import { HomeComponent } from './home/home.component';
   ],
   imports: [
     RouterModule.forRoot(routes),
+    MaterialModule.forRoot(),
     MarkdownModule,
     BrowserModule,
     FormsModule,
