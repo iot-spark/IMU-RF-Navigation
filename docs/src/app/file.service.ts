@@ -4,7 +4,7 @@ import 'rxjs/Rx';
 import 'rxjs/add/operator/toPromise';
 
 @Injectable()
-export class MarkdownService {
+export class FileService {
 
   constructor(private http: Http) { }
 

@@ -1,3 +1,5 @@
+@import '../../node_modules/@angular/material/core/theming/_palette';
+
 .main-container{
     display: flex;
     flex-direction: row;
@@ -15,3 +17,6 @@
     padding: 3px;
 }
 
+.sidenav-button{
+    background-color: map-get($md-grey, 600);
+}

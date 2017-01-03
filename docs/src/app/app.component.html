@@ -4,6 +4,6 @@
 
   <div class="sidebar-container md-sidenav-container">
     <button [routerLink]="['/']" md-raised-button color="accent">Home</button>
-    <button [routerLink]="['/md', {file: '\/assets\/posts\/demo.md'}]" md-raised-button color="primary">Demo Post</button>
+    <button *ngFor="let post of posts" [routerLink]="[post.url, post.params]" md-raised-button class="sidenav-button">{{post.label}}</button>
   </div>
 </div>

@@ -6,7 +6,7 @@ import { Http } from '@angular/http';
 import 'rxjs/Rx';
 import 'rxjs/add/operator/toPromise';
 
-import { MarkdownService } from './markdown.service';
+import { FileService } from '../file.service';
 
 import * as  marked  from 'marked';
 
@@ -21,9 +21,9 @@ import 'prismjs/components/prism-scss';
 
 @Component({
   selector: 'app-markdown',
-  providers: [MarkdownService],
+  providers: [FileService],
   templateUrl: './markdown.component.html',
-  styleUrls: ['./markdown.component.css']
+  styleUrls: ['./markdown.component.scss']
 })
 export class MarkdownComponent implements OnInit, OnDestroy {
   md = '## Markdown Works! ##';
@@ -33,7 +33,7 @@ export class MarkdownComponent implements OnInit, OnDestroy {
   constructor(
     private el: ElementRef, private route: ActivatedRoute, 
     private http: Http, private location: Location,
-    private service: MarkdownService) { 
+    private service: FileService) { 
       
       this.el = el;
   }
@@ -61,7 +61,7 @@ export class MarkdownComponent implements OnInit, OnDestroy {
    * catch http error
    */
   private handleError(error: any): Promise<any> {
-        console.error('An error occurred', error); // for demo purposes only
+        console.error('MarkdownComponent >> An error occurred', error); // for demo purposes only
         return Promise.reject(error.message || error);
   }
 }
