@@ -1,2 +1,3 @@
-# NG2-Markdown-GitHub-IO
-Seed project of NG2 app deployed into GitHub.io without 404.html hack.
+# IMU + RF Beacons Navigation
+
+The aim of the project is to implement a Personal Redundant Indoor and Outdoor Navigation System.
