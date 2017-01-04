@@ -1,8 +1,8 @@
 [
     {
-        "label": "Demo Post",
+        "label": "Useful Links",
         "url": "/md",
-        "params": {"file": "/assets/posts/demo.md"},
+        "params": {"file": "/assets/posts/links.md"},
         "children": []
-    }    
+    }
 ]
