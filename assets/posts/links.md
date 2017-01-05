@@ -7,6 +7,9 @@
 1. [Timers Cookbook](http://www.st.com/content/ccc/resource/technical/document/application_note/group0/91/01/84/3f/7c/67/41/3f/DM00236305/files/DM00236305.pdf/jcr:content/translations/en.DM00236305.pdf)
 1. [Libs on GitHub](https://github.com/MaJerle/stm32f429)
 
+##### STM32 Get Started and Programming Guides #####
+1. [STM32CubeMX -> Exclipse Quick Start Guide (*RU*)](http://we.easyelectronics.ru/STM32/stm32cubemx-start-code-eclipse-bystryy-start-otladka-v-eclipse-cherez-st-link-discovery.html) - Toolchain Installation, STM32CubeMX, OpenOCD, Eclipse; Code Generation in STM32CubeMX, Import to Eclipse.  
+
 ##### STM32 App Notes / Tutorials #####
 1. [SW Multitasking Timer (*RU*)](http://we.easyelectronics.ru/STM32/programmnyy-mnogozadachnyy-taymer-na-stm32.html)  
 1. [Controlling the WS2812b RGB Strip (*RU*)](http://we.easyelectronics.ru/STM32/upravlenie-svetodiodnoy-lentoy-na-ws2812b-s-stm32f10x.html)  
