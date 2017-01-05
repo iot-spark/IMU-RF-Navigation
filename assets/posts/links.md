@@ -13,6 +13,7 @@
 
 ##### STM32 App Notes / Tutorials #####
 1. [SW Multitasking Timer (*RU*)](http://we.easyelectronics.ru/STM32/programmnyy-mnogozadachnyy-taymer-na-stm32.html)  
+1. [SW Multitasking Timer #2 (*RU*)](http://we.easyelectronics.ru/STM32/mnogozadachnyy-programmnyy-taymer-ver-20.html)  
 1. [Controlling the WS2812b RGB Strip (*RU*)](http://we.easyelectronics.ru/STM32/upravlenie-svetodiodnoy-lentoy-na-ws2812b-s-stm32f10x.html)  
 1. [FatFS by Chan](https://stm32f4-discovery.net/2014/07/library-21-read-sd-card-fatfs-stm32f4xx-devices/)  
 1. [FatFS by "fsenok" (*RU*)](http://we.easyelectronics.ru/STM32/emulyaciya-nositelya-fat32-na-stm32f4.html)  
