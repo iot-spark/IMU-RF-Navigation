@@ -5,8 +5,13 @@
   1. [STM32 Community on *easyelectronics.ru*](http://we.easyelectronics.ru/blog/STM32/)  
   1. [Timers](http://www.st.com/content/ccc/resource/technical/document/application_note/54/0f/67/eb/47/34/45/40/DM00042534.pdf/files/DM00042534.pdf/jcr:content/translations/en.DM00042534.pdf)
   1. [Timers Cookbook](http://www.st.com/content/ccc/resource/technical/document/application_note/group0/91/01/84/3f/7c/67/41/3f/DM00236305/files/DM00236305.pdf/jcr:content/translations/en.DM00236305.pdf)
-  1. [FatFS by Chan](https://stm32f4-discovery.net/2014/07/library-21-read-sd-card-fatfs-stm32f4xx-devices/)
   1. [Libs on GitHub](https://github.com/MaJerle/stm32f429)
+##### STM32 App Notes / Tutorials #####
+1. [SW Multitasking Timer (*RU*)](http://we.easyelectronics.ru/STM32/programmnyy-mnogozadachnyy-taymer-na-stm32.html)  
+1. [Controlling the WS2812b RGB Strip (*RU*)](http://we.easyelectronics.ru/STM32/upravlenie-svetodiodnoy-lentoy-na-ws2812b-s-stm32f10x.html)  
+1. [FatFS by Chan](https://stm32f4-discovery.net/2014/07/library-21-read-sd-card-fatfs-stm32f4xx-devices/)  
+1. [FatFS by "fsenok" (*RU*)](http://we.easyelectronics.ru/STM32/emulyaciya-nositelya-fat32-na-stm32f4.html)  
+1. [Programming STM32 using Simulink and Embedded Coder (*RU*)](http://we.easyelectronics.ru/STM32/stm32f4-discovery-programmirovanie-s-ispolzovaniem-simulink-i-embedded-coder.html)
 
 #### ESP8266 / ESP32 ####
 1. [ESP8266 Community Hub](http://esp8266.net/)  
