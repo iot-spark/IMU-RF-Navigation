@@ -10,5 +10,6 @@
 1. [ESP8266 Community Hub](http://esp8266.net/)  
 1. [ESP8266 Community Hub #2](http://www.esp8266.com/)  
 1. [ESP8266 - Node MCU Firmware Portal](http://www.nodemcu.com/index_en.html)  
+1. [Node MCU on GitHub](https://github.com/nodemcu/nodemcu-firmware)  
 1. [ESP32 Community Hub](http://esp32.net/)  
 1. [ESP32 Programming Guide](http://esp-idf.readthedocs.io/en/latest/index.html)  
