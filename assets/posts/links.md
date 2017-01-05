@@ -7,7 +7,8 @@
   1. [Libs on GitHub](https://github.com/MaJerle/stm32f429)
 
 #### ESP8266 / ESP32 ####
-1. [ESP32 Community Hub](http://esp32.net/)  
 1. [ESP8266 Community Hub](http://esp8266.net/)
+1. [ESP8266 Community Hub #2](http://www.esp8266.com/)
+1. [ESP32 Community Hub](http://esp32.net/)  
 1. [ESP32 Programming Guide](http://esp-idf.readthedocs.io/en/latest/index.html)  
 
