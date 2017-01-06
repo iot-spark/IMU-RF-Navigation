@@ -8,6 +8,12 @@
     {
         "label": "Timers Configuration",
         "url": "/md",
+        "params": {"file": "/assets/posts/sw4stm-import.md"},
+        "children": []
+    },
+    {
+        "label": "Timers Configuration",
+        "url": "/md",
         "params": {"file": "/assets/posts/stm32f4-timers.md"},
         "children": []
     }
