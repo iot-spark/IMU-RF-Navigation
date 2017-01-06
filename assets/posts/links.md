@@ -9,9 +9,10 @@
 
 ##### STM32 Get Started and Programming Guides #####
 1. [STM32CubeMX -> Exclipse Quick Start Guide (*RU*)](http://we.easyelectronics.ru/STM32/stm32cubemx-start-code-eclipse-bystryy-start-otladka-v-eclipse-cherez-st-link-discovery.html) - Toolchain Installation, STM32CubeMX, OpenOCD, Eclipse; Code Generation in STM32CubeMX, Import to Eclipse.  
-1. [Importing project from STM32CubeMX to Eclipse (*RU*)](http://we.easyelectronics.ru/STM32/konvertaciya-v-format-eclipse-stm32-proektov-ot-st-i-iz-cubemx.html)  
+1. [Importing CubeMX Generated Code into SW4STM32](http://www.openstm32.org/Importing+a+STCubeMX+generated+project) (preferrable option).  
+1. [Importing project from STM32CubeMX to Eclipse (*RU*)](http://we.easyelectronics.ru/STM32/konvertaciya-v-format-eclipse-stm32-proektov-ot-st-i-iz-cubemx.html) (just in case)  
+1. [Quick Start w/ CoIDE and ST-Link v2](http://we.easyelectronics.ru/STM32/prostoy-start-stm32coocox-idest-link.html) (3rd option if nothing works ;)
 1. [H/W Debugging in Eclipse](http://we.easyelectronics.ru/STM32/otladka-stm32-v-srede-eclipsegcc.html)
-1. [Quick Start w/ CoIDE and ST-Link v2](http://we.easyelectronics.ru/STM32/prostoy-start-stm32coocox-idest-link.html)
 
 ##### STM32 App Notes / Tutorials #####
 1. [SW Multitasking Timer (*RU*)](http://we.easyelectronics.ru/STM32/programmnyy-mnogozadachnyy-taymer-na-stm32.html)  
