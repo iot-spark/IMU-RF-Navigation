@@ -6,7 +6,7 @@
         "children": []
     },
     {
-        "label": "Timers Configuration",
+        "label": "CubeMX >> SW4STM32",
         "url": "/md",
         "params": {"file": "/assets/posts/sw4stm-import.md"},
         "children": []
