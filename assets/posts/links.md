@@ -39,6 +39,7 @@
 1. [Random Numbers](https://github.com/MaJerle/stm32f429/tree/master/22-STM32F429_RNG/User)  
 1. [Working with LIS3DSH, LIS302DL Accelerometers](https://github.com/MaJerle/stm32f429/tree/master/35-STM32F4_LIS3DSH_LIS302DL/User)  
 1. [Working with MPU-6050](https://github.com/MaJerle/stm32f429/tree/master/43-STM32F429_MPU6050/User), [Two Devices](https://github.com/MaJerle/stm32f429/tree/master/43-STM32F429_MPU6050_2DEVICES/User)  
+1. [MPU-9250 Datasheet](https://www.invensense.com/wp-content/uploads/2015/02/PS-MPU-9250A-01-v1.1.pdf)  
 
 
 #### ESP8266 / ESP32 ####
