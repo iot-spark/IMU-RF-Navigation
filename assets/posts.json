@@ -4,5 +4,12 @@
         "url": "/md",
         "params": {"file": "/assets/posts/links.md"},
         "children": []
+    },
+    {
+        "label": "Timers Configuration",
+        "url": "/md",
+        "params": {"file": "/assets/posts/stm32f4-timers.md"},
+        "children": []
     }
+    
 ]
