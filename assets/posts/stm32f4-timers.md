@@ -59,14 +59,14 @@ Refering to [MPU-9250 Lib Code](https://github.com/kriswiner/MPU-9250/blob/maste
 #define GYRO_ZOUT_L      0x48
 ```
 
-Pure Payload: 14 bytes.
-SCL pulses per 1 byte: 18.
-Total SCL pulses: 14 * 18 [+ ? pulses for (S) and (P)] == **252 pulses** [+ (S) and (P)].
-Total time at 400kHz (pps): 252 / 400k == 0.63msec.
-Total time for 4 sensors (MPU-9250 or MPU-6050): 0.63msec * 4 == 2.52msec [+ (S) and (P), other delay due to Pins Toggling for AD0 hack and similar things].
-Total time for 4 Sensors approx.: **5msec**.
+Pure Payload: 14 bytes.  
+SCL pulses per 1 byte: 18.  
+Total SCL pulses: 14 * 18 [+ ? pulses for (S) and (P)] == **252 pulses** [+ (S) and (P)].  
+Total time at 400kHz (pps): 252 / 400k == 0.63msec.  
+Total time for 4 sensors (MPU-9250 or MPU-6050): 0.63msec * 4 == 2.52msec [+ (S) and (P), other delay due to Pins Toggling for AD0 hack and similar things].  
+Total time for 4 Sensors approx.: **5msec**.  
 
 Taking **10msec** period for Main Timer Period as Initial Approximation.
 
-**TODO 1**: *Find out how to get Mag Payload.*
-**TODO 2**: *Evaluate Approx. the time needed for Kalman Filter calculations.*
+**TODO 1**: *Find out how to get Mag Payload.*  
+**TODO 2**: *Evaluate Approx. the time needed for Kalman Filter calculations.*  
