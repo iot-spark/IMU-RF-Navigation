@@ -17,3 +17,7 @@
   + Missing "STM32F407xx" symbol
     1. Go to Project properties > C++ Build > Settings > Tool Settings > Symbols
     1. Add **STM32F407xx** symbol to "Defined" section
+  + Error in Linking: "undefined reference '\_exit'"
+    1. Used [this topic](https://answers.launchpad.net/gcc-arm-embedded/+question/230869) as a starting point
+    1. Opened Project properties > C++ Build > Settings > MCU GCC Linker > Miscelaneous
+    1. Added "-lc -lrdimon" into Linker flags field
