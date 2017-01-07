@@ -12,6 +12,7 @@
     1. Add "${workspace_loc:/${ProjName}/Drivers/CMSIS/Include}"
     1. Add "${workspace_loc:/${ProjName}/Drivers/STM32F4xx_HAL_Driver/Inc}"
     1. Add "${workspace_loc:/${ProjName}/Drivers/CMSIS/Device/ST/STM32F4xx/Include}"
+    1. Add "${workspace_loc:/${ProjName}/Middlewares/Third_Party/FatFs/src}"
     1. Add "${workspace_loc:/${ProjName}/Inc}"
   + Missing "STM32F407xx" symbol
     1. Go to Project properties > C++ Build > Settings > Tool Settings > Symbols
