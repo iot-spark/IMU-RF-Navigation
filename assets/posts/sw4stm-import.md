@@ -6,4 +6,12 @@
   1. Press "New" button, input Name and activate "Import predefined" option
   1. Select "Executable > Ac6 STM32 MCU GCC > Debug" or "... > Release"
   1. Create two Build Configurations: Debug and Release
-1. Fix Build Errors (if any ;)
+1. Fix Build Errors (if any ;). I faced with the following issues.
+  + Missing Include directives.
+    1. Go to Project properties > C++ Build > Settings > Tool Settings > Includes
+    1. Add "${workspace_loc:/${ProjName}/Drivers/STM32F4xx_HAL_Driver/Inc}"
+    1. Add "${workspace_loc:/${ProjName}/Drivers/CMSIS/Device/ST/STM32F4xx/Include}"
+    1. Add "${workspace_loc:/${ProjName}/Inc}"
+  + Missing "STM32F407xx" symbol
+    1. Go to Project properties > C++ Build > Settings > Tool Settings > Symbols
+    1. Add **STM32F407xx** symbol to "Defined" section
