@@ -9,6 +9,7 @@
 1. Fix Build Errors (if any ;). I faced with the following issues.
   + Missing Include directives.
     1. Go to Project properties > C++ Build > Settings > Tool Settings > Includes
+    1. Add "${workspace_loc:/${ProjName}/Drivers/CMSIS/Include}"
     1. Add "${workspace_loc:/${ProjName}/Drivers/STM32F4xx_HAL_Driver/Inc}"
     1. Add "${workspace_loc:/${ProjName}/Drivers/CMSIS/Device/ST/STM32F4xx/Include}"
     1. Add "${workspace_loc:/${ProjName}/Inc}"
