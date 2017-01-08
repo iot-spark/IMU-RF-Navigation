@@ -27,6 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include "stm32f4xx_hal_spi.h"
 #include "stm32f4xx_hal_gpio.h"
 #include "spi.h"
+#include "tm_stm32_delay.h"
 
 /* starts I2C communication and sets up the MPU-9250 */
 int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
@@ -188,7 +189,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
         return -1;
     }
-    Delayms(100);(100); // long wait between AK8963 mode changes
+    Delayms(100); // long wait between AK8963 mode changes
 
     // set AK8963 to FUSE ROM access
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) ){
@@ -347,7 +348,7 @@ int32_t enableInt(uint8_t enable){
 
 /* get accelerometer data given pointers to store the three values, return data as counts */
 void getAccelCounts(int16_t* ax, int16_t* ay, int16_t* az){
-    uint8_t buff[6];
+    uint8_t buff[6] = {0,};
     int16_t axx, ayy, azz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
@@ -375,7 +376,7 @@ void getAccel(float* ax, float* ay, float* az){
 
 /* get gyro data given pointers to store the three values, return data as counts */
 void getGyroCounts(int16_t* gx, int16_t* gy, int16_t* gz){
-    uint8_t buff[6];
+    uint8_t buff[6] = {0,};
     int16_t gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
@@ -403,7 +404,7 @@ void getGyro(float* gx, float* gy, float* gz){
 
 /* get magnetometer data given pointers to store the three values, return data as counts */
 void getMagCounts(int16_t* hx, int16_t* hy, int16_t* hz){
-    uint8_t buff[7];
+    uint8_t buff[7] = {0,};
     //_useSPIHS = true; // use the high speed SPI for data readout
 
     // read the magnetometer data off the external sensor buffer
@@ -434,7 +435,7 @@ void getMag(float* hx, float* hy, float* hz){
 
 /* get temperature data given pointer to store the value, return data as counts */
 void getTempCounts(int16_t* t){
-    uint8_t buff[2];
+    uint8_t buff[2] = {0,};
     //_useSPIHS = true; // use the high speed SPI for data readout
 
     readRegisters(TEMP_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
@@ -453,7 +454,7 @@ void getTemp(float* t){
 
 /* get accelerometer and gyro data given pointers to store values, return data as counts */
 void getMotion6Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz){
-    uint8_t buff[14];
+    uint8_t buff[14] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
@@ -494,7 +495,7 @@ void getMotion6(float* ax, float* ay, float* az, float* gx, float* gy, float* gz
 
 /* get accelerometer, gyro and temperature data given pointers to store values, return data as counts */
 void getMotion7Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz, int16_t* t){
-    uint8_t buff[14];
+    uint8_t buff[14] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
@@ -540,7 +541,7 @@ void getMotion7(float* ax, float* ay, float* az, float* gx, float* gy, float* gz
 
 /* get accelerometer, gyro and magnetometer data given pointers to store values, return data as counts */
 void getMotion9Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz, int16_t* hx, int16_t* hy, int16_t* hz){
-    uint8_t buff[21];
+    uint8_t buff[21] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
@@ -590,7 +591,7 @@ void getMotion9(float* ax, float* ay, float* az, float* gx, float* gy, float* gz
 
 /* get accelerometer, magnetometer, and temperature data given pointers to store values, return data as counts */
 void getMotion10Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz, int16_t* hx, int16_t* hy, int16_t* hz, int16_t* t){
-    uint8_t buff[21];
+    uint8_t buff[21] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
@@ -741,7 +742,7 @@ void readAK8963Registers(uint8_t subAddress, uint8_t count, uint8_t* dest){
 
 /* gets the MPU9250 WHO_AM_I register value, expected to be 0x71 */
 uint8_t whoAmI(){
-    uint8_t buff[1];
+    uint8_t buff[1] = {0,};
 
     // read the WHO AM I register
     readRegisters(WHO_AM_I,sizeof(buff),&buff[0]);
