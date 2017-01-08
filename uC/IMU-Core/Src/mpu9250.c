@@ -47,11 +47,11 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
     	}
 
         // setting CS pin high
-        HAL_GPIO_WritePin(SPI_CS_PIN, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_SET);
     }
     else{ // using I2C for communication
     	// clearing CS pin high
-		HAL_GPIO_WritePin(SPI_CS_PIN, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_RESET);
     }
 
     // select clock source to gyro
@@ -649,21 +649,22 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
 
     /* write data to device */
     if( USE_SPI ){
-    	// TODO: properly implement SPI communication
-//    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
-//		SPI.transfer(subAddress); // write the register address
-//		SPI.transfer(data); // write the data
-//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
+    	// TODO: Check if this code works
+    	CS_ON //    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
+		MPU_SPI_TX(&subAddress, 1);//HAL_SPI_Transmit_DMA(&hspi1, &subAddress, 1);//		SPI.transfer(subAddress); // write the register address
+    	MPU_SPI_TX(&data, 1);//HAL_SPI_Transmit_DMA(&hspi1, &data, 1);//		SPI.transfer(data); // write the data
+    	CS_OFF//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
 
     }
     else{
-    	// TODO: properly implement I2C communication
-//      	i2c_t3(_bus).beginTransmission(_address); // open the device
-//      	i2c_t3(_bus).write(subAddress); // write the register address
-//      	i2c_t3(_bus).write(data); // write the data
-//      	i2c_t3(_bus).endTransmission();
+    	// TODO: Check if this code works
+    	HAL_I2C_Master_Transmit_DMA(&hi2c1, I2C_MPU9250_ADR, &subAddress, 1);//      	i2c_t3(_bus).beginTransmission(_address); // open the device
+    																		 //      	i2c_t3(_bus).write(subAddress); // write the register address
+    	HAL_I2C_Master_Transmit_DMA(&hi2c1, I2C_MPU9250_ADR, &data, 1);//      	i2c_t3(_bus).write(data); // write the data
+    																   //      	i2c_t3(_bus).endTransmission();
     }
-    Delayms(100); // need to slow down how fast I write to MPU9250
+
+    Delay(100); // need to slow down how fast I write to MPU9250
 
   	/* read back the register */
   	readRegisters(subAddress,sizeof(buff),&buff[0]);
@@ -679,23 +680,26 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
 
 /* reads registers from MPU9250 given a starting register address, number of bytes, and a pointer to store data */
 void readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
+	uint8_t buff[count];
 
     if( USE_SPI ){
 
-    	// TODO: properly implement SPI communication
-//    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
-//
-//		SPI.transfer(subAddress | SPI_READ); // specify the starting register address
-//
-//		for(uint8_t i = 0; i < count; i++){
-//			dest[i] = SPI.transfer(0x00); // read the data
-//		}
-//
-//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
+    	// TODO: Check if this code works
+    	CS_ON//    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
+		buff[0] = subAddress | SPI_READ;
+
+		MPU_SPI_TX(&buff[0], 1);//		SPI.transfer(subAddress | SPI_READ); // specify the starting register address
+
+		//for(uint8_t i = 0; i < count; i++){
+			// TODO: Verify this code as equivalent to original code with "for" statement
+			HAL_SPI_TransmitReceive_DMA(&hspi1, &buff[0], &dest[0], count);//dest[i] = SPI.transfer(0x00); // read the data
+		//}
+
+		CS_OFF//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
 
     }
     else{
-    	// Properly implement I2C communication
+    	// TODO: Implement I2C communication
 //        i2c_t3(_bus).beginTransmission(_address); // open the device
 //        i2c_t3(_bus).write(subAddress); // specify the starting register address
 //        i2c_t3(_bus).endTransmission(false);

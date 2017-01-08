@@ -28,11 +28,18 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
 
-// SPI constants
-#define SPI_CS_PIN GPIOD, GPIO_PIN_15
+// SPI Defines
+#define SPI_CS GPIOD, GPIO_PIN_15
+#define CS_ON HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_RESET);
+#define CS_OFF HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_SET);
+#define MPU_SPI_TX1(data) HAL_SPI_Transmit_DMA(&hspi1, data, 1)
+#define MPU_SPI_RX1(buff) HAL_SPI_(&hspi1, buff, 1)
 #define USE_SPI 1		// Use SPI rather I2C
 #define USE_SPI_HS 0    // Configure SPI with High Speed
-#define SPI_READ = 0x80;
+#define SPI_READ 0x80;
+
+// I2C Defines
+#define I2C_MPU9250_ADR 0x68
 
 typedef enum
 {
