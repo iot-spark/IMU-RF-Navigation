@@ -1,0 +1,10 @@
+button.sidenav-button
+{
+	margin-top: 2px;
+	overflow-x:hidden;	
+}
+
+button.sidenav-button .md-button-wrapper
+{
+	margin-top: 2px;	
+}
