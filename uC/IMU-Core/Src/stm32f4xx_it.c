@@ -36,7 +36,7 @@
 #include "stm32f4xx_it.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "dwt_delay.h"
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
@@ -335,9 +335,19 @@ void TIM6_DAC_IRQHandler(void)
   /* USER CODE END TIM6_DAC_IRQn 0 */
   HAL_TIM_IRQHandler(&htim6);
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
-  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
-  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
-  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_15);
+
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+	DWT_Delay(10);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+	DWT_Delay(20);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+	DWT_Delay(40);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+	DWT_Delay(80);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+	DWT_Delay(80);
+	HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_13);
+
   /* USER CODE END TIM6_DAC_IRQn 1 */
 }
 
