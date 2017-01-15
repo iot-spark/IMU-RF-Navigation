@@ -167,6 +167,7 @@ NVIC.SPI2_IRQn=true\:0\:0\:false\:false\:true
 NVIC.SPI3_IRQn=true\:0\:0\:false\:false\:true
 NVIC.SVCall_IRQn=true\:0\:0\:false\:false\:true
 NVIC.SysTick_IRQn=true\:0\:0\:false\:false\:true
+NVIC.TIM6_DAC_IRQn=true\:0\:0\:false\:false\:true
 NVIC.USART1_IRQn=true\:0\:0\:false\:false\:true
 NVIC.USART6_IRQn=true\:0\:0\:false\:false\:true
 NVIC.UsageFault_IRQn=true\:0\:0\:false\:false\:true
