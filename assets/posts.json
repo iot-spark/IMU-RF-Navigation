@@ -14,7 +14,7 @@
     {
         "label": "Bolderflight MPU9250",
         "url": "/md",
-        "params": {"file": "/assets/posts/stm32f4-timers.md"},
+        "params": {"file": "/assets/posts/bolderflight_mpu9250.md"},
         "children": []
     },
     {
