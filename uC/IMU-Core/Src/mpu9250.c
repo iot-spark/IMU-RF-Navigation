@@ -27,10 +27,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include "stm32f4xx_hal_spi.h"
 #include "stm32f4xx_hal_gpio.h"
 #include "spi.h"
-#include "tm_stm32_delay.h"
+#include "i2c.h"
+
+// constants
+const float G = 9.807f;
+const float _d2r = 3.14159265359f/180.0f;
+
+float _accelScale;
+float _gyroScale;
+float _magScaleX, _magScaleY, _magScaleZ;
+const float _tempScale = 333.87f;
+const float _tempOffset = 21.0f;
+
+// transformation matrix
+/* transform the accel and gyro axes to match the magnetometer axes */
+const int16_t tX[3] = {0,  1,  0};
+const int16_t tY[3] = {1,  0,  0};
+const int16_t tZ[3] = {0,  0, -1};
 
 /* starts I2C communication and sets up the MPU-9250 */
-int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
+int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
     uint8_t buff[3];
     uint8_t data[7];
 
@@ -61,41 +77,41 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
 
     // enable I2C master mode
     if( !writeRegister(USER_CTRL,I2C_MST_EN) ){
-        return -1;
+        return -2;
     }
 
     // set the I2C bus speed to 400 kHz
-    if( !writeRegister(I2C_MST_CTRL,I2C_MST_CLK) ){
-        return -1;
-    }
+//    if( !writeRegister(I2C_MST_CTRL,I2C_MST_CLK) ){
+//        return -1;
+//    }
 
     // set AK8963 to Power Down
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
-        return -1;
+        return -3;
     }
 
     // reset the MPU9250
     writeRegister(PWR_MGMNT_1,PWR_RESET);
 
     // wait for MPU-9250 to come back up
-    Delayms(100);
+    DELAY_MS(100);
 
     // reset the AK8963
     writeAK8963Register(AK8963_CNTL2,AK8963_RESET);
 
     // select clock source to gyro
     if( !writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) ){
-        return -1;
+        return -4;
     }
 
     // check the WHO AM I byte, expected value is 0x71 (decimal 113)
     if( whoAmI() != 113 ){
-        return -1;
+        return -5;
     }
 
     // enable accelerometer and gyro
     if( !writeRegister(PWR_MGMNT_2,SEN_ENABLE) ){
-        return -1;
+        return -6;
     }
 
     /* setup the accel and gyro ranges */
@@ -104,7 +120,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case ACCEL_RANGE_2G:
             // setting the accel range to 2G
             if( !writeRegister(ACCEL_CONFIG,ACCEL_FS_SEL_2G) ){
-                return -1;
+                return -11;
             }
             _accelScale = G * 2.0f/32767.5f; // setting the accel scale to 2G
             break;
@@ -112,7 +128,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case ACCEL_RANGE_4G:
             // setting the accel range to 4G
             if( !writeRegister(ACCEL_CONFIG,ACCEL_FS_SEL_4G) ){
-                return -1;
+                return -12;
             }
             _accelScale = G * 4.0f/32767.5f; // setting the accel scale to 4G
             break;
@@ -120,7 +136,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case ACCEL_RANGE_8G:
             // setting the accel range to 8G
             if( !writeRegister(ACCEL_CONFIG,ACCEL_FS_SEL_8G) ){
-                return -1;
+                return -13;
             }
             _accelScale = G * 8.0f/32767.5f; // setting the accel scale to 8G
             break;
@@ -128,7 +144,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case ACCEL_RANGE_16G:
             // setting the accel range to 16G
             if( !writeRegister(ACCEL_CONFIG,ACCEL_FS_SEL_16G) ){
-                return -1;
+                return -14;
             }
             _accelScale = G * 16.0f/32767.5f; // setting the accel scale to 16G
             break;
@@ -138,7 +154,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case GYRO_RANGE_250DPS:
             // setting the gyro range to 250DPS
             if( !writeRegister(GYRO_CONFIG,GYRO_FS_SEL_250DPS) ){
-                return -1;
+                return -21;
             }
             _gyroScale = 250.0f/32767.5f * _d2r; // setting the gyro scale to 250DPS
             break;
@@ -146,7 +162,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case GYRO_RANGE_500DPS:
             // setting the gyro range to 500DPS
             if( !writeRegister(GYRO_CONFIG,GYRO_FS_SEL_500DPS) ){
-                return -1;
+                return -22;
             }
             _gyroScale = 500.0f/32767.5f * _d2r; // setting the gyro scale to 500DPS
             break;
@@ -154,7 +170,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case GYRO_RANGE_1000DPS:
             // setting the gyro range to 1000DPS
             if( !writeRegister(GYRO_CONFIG,GYRO_FS_SEL_1000DPS) ){
-                return -1;
+                return -23;
             }
             _gyroScale = 1000.0f/32767.5f * _d2r; // setting the gyro scale to 1000DPS
             break;
@@ -162,7 +178,7 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
         case GYRO_RANGE_2000DPS:
             // setting the gyro range to 2000DPS
             if( !writeRegister(GYRO_CONFIG,GYRO_FS_SEL_2000DPS) ){
-                return -1;
+                return -24;
             }
             _gyroScale = 2000.0f/32767.5f * _d2r; // setting the gyro scale to 2000DPS
             break;
@@ -170,32 +186,32 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
 
     // enable I2C master mode
     if( !writeRegister(USER_CTRL,I2C_MST_EN) ){
-    	return -1;
+    	return -31;
     }
 
 	// set the I2C bus speed to 400 kHz
 	if( !writeRegister(I2C_MST_CTRL,I2C_MST_CLK) ){
-		return -1;
+		return -32;
 	}
 
 	// check AK8963 WHO AM I register, expected value is 0x48 (decimal 72)
 	if( whoAmIAK8963() != 72 ){
-        return -1;
+        return -33;
 	}
 
     /* get the magnetometer calibration */
 
     // set AK8963 to Power Down
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
-        return -1;
+        return -34;
     }
-    Delayms(100); // long wait between AK8963 mode changes
+    DELAY_MS(100); // long wait between AK8963 mode changes
 
     // set AK8963 to FUSE ROM access
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) ){
-        return -1;
+        return -35;
     }
-    Delayms(100); // long wait between AK8963 mode changes
+    DELAY_MS(100); // long wait between AK8963 mode changes
 
     // read the AK8963 ASA registers and compute magnetometer scale factors
     readAK8963Registers(AK8963_ASA,sizeof(buff),&buff[0]);
@@ -205,19 +221,19 @@ int32_t begin(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
 
     // set AK8963 to Power Down
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
-        return -1;
+        return -36;
     }
-    Delayms(100); // long wait between AK8963 mode changes
+    DELAY_MS(100); // long wait between AK8963 mode changes
 
     // set AK8963 to 16 bit resolution, 100 Hz update rate
     if( !writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) ){
-        return -1;
+        return -37;
     }
-    Delayms(100); // long wait between AK8963 mode changes
+    DELAY_MS(100); // long wait between AK8963 mode changes
 
     // select clock source to gyro
     if( !writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) ){
-        return -1;
+        return -38;
     }
 
     // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
@@ -299,13 +315,13 @@ int32_t setFilt(mpu9250_dlpf_bandwidth bandwidth, uint8_t SRD){
         if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
             return -1;
         }
-        Delayms(100); // long wait between AK8963 mode changes
+        DELAY_MS(100); // long wait between AK8963 mode changes
 
         // set AK8963 to 16 bit resolution, 8 Hz update rate
         if( !writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS1) ){
             return -1;
         }
-        Delayms(100); // long wait between AK8963 mode changes
+        DELAY_MS(100); // long wait between AK8963 mode changes
 
         // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
         readAK8963Registers(AK8963_HXL,sizeof(data),&data[0]);
@@ -651,8 +667,8 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
     if( USE_SPI ){
     	// TODO: Check if this code works
     	CS_ON //    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
-		MPU_SPI_TX(&subAddress, 1);//HAL_SPI_Transmit_DMA(&hspi1, &subAddress, 1);//		SPI.transfer(subAddress); // write the register address
-    	MPU_SPI_TX(&data, 1);//HAL_SPI_Transmit_DMA(&hspi1, &data, 1);//		SPI.transfer(data); // write the data
+		MPU_SPI_TX(&subAddress);//HAL_SPI_Transmit_DMA(&hspi1, &subAddress, 1);//		SPI.transfer(subAddress); // write the register address
+    	MPU_SPI_TX(&data);//HAL_SPI_Transmit_DMA(&hspi1, &data, 1);//		SPI.transfer(data); // write the data
     	CS_OFF//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
 
     }
@@ -664,7 +680,7 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
     																   //      	i2c_t3(_bus).endTransmission();
     }
 
-    Delay(100); // need to slow down how fast I write to MPU9250
+    DELAY_uS(100); // need to slow down how fast I write to MPU9250
 
   	/* read back the register */
   	readRegisters(subAddress,sizeof(buff),&buff[0]);
@@ -688,7 +704,7 @@ void readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
     	CS_ON//    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
 		buff[0] = subAddress | SPI_READ;
 
-		MPU_SPI_TX(&buff[0], 1);//		SPI.transfer(subAddress | SPI_READ); // specify the starting register address
+		MPU_SPI_TX(&buff[0]);//		SPI.transfer(subAddress | SPI_READ); // specify the starting register address
 
 		//for(uint8_t i = 0; i < count; i++){
 			// TODO: Verify this code as equivalent to original code with "for" statement
@@ -740,7 +756,7 @@ void readAK8963Registers(uint8_t subAddress, uint8_t count, uint8_t* dest){
 	writeRegister(I2C_SLV0_ADDR,AK8963_I2C_ADDR | I2C_READ_FLAG); // set slave 0 to the AK8963 and set for read
 	writeRegister(I2C_SLV0_REG,subAddress); // set the register to the desired AK8963 sub address
 	writeRegister(I2C_SLV0_CTRL,I2C_SLV0_EN | count); // enable I2C and request the bytes
-	Delay(100); // takes some time for these registers to fill
+	DELAY_uS(100); // takes some time for these registers to fill
 	readRegisters(EXT_SENS_DATA_00,count,dest); // read the bytes off the MPU9250 EXT_SENS_DATA registers
 }
 
