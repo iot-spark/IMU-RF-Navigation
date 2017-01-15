@@ -12,6 +12,12 @@
         "children": []
     },
     {
+        "label": "Bolderflight MPU9250",
+        "url": "/md",
+        "params": {"file": "/assets/posts/stm32f4-timers.md"},
+        "children": []
+    },
+    {
         "label": "MPU9250 IMU",
         "url": "/md",
         "params": {"file": "/assets/posts/imu.md"},
