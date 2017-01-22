@@ -13,4 +13,4 @@ To properly write and then read out ONE BYTE into/from MPU9250 registers you nee
 
   On the last step it is important to put 0x00 into SPI MOSI line. Otherwise it seems like MPU9250 thinks that you write or something else. Anyway, you won't receive good data if you don't send 0x00 in full duplex mode.
 
-  ![SPI communication](assets/posts/img/SPI_fullduplex_issue.png "Example of wrong and correct SPI communication")
+  ![SPI communication](assets/posts/img/SPI_fullduplex_issue.png "Example of wrong and correct SPI communication" =600x)
