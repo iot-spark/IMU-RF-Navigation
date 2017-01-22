@@ -6,5 +6,5 @@ button.sidenav-button
 
 button.sidenav-button .md-button-wrapper
 {
-	margin-top: 2px;	
+	overflow-x: hidden;	
 }
