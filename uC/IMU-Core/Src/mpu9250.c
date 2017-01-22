@@ -45,10 +45,12 @@ const int16_t tX[3] = {0,  1,  0};
 const int16_t tY[3] = {1,  0,  0};
 const int16_t tZ[3] = {0,  0, -1};
 
+/* SHARED BUFFER */
+static uint8_t buff[42] = {0,};
+
 /* starts I2C communication and sets up the MPU-9250 */
 int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
-    uint8_t buff[3];
-    uint8_t data[7];
+    uint8_t data[7] = {0,};
 
     if( USE_SPI ){ // using SPI for communication
 
@@ -64,10 +66,24 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
 
         // setting CS pin high
         HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_SET);
+
+        // reset the device
+        writeRegister(0x6B, 0x80);
+        DWT_Delay( 10 );
+
+        // disable I2C protocol
+        writeRegister( 0x6A, 0x10 );
+        DWT_Delay( 10 );
     }
     else{ // using I2C for communication
     	// clearing CS pin high
 		HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_RESET);
+    }
+
+    // check the WHO AM I byte, expected value is 0x71 (decimal 113)
+    int32_t who_am_i_result = whoAmI();
+    if( who_am_i_result != 0x71 ){
+        return -5;
     }
 
     // select clock source to gyro
@@ -103,11 +119,11 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
     if( !writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) ){
         return -4;
     }
-
-    // check the WHO AM I byte, expected value is 0x71 (decimal 113)
-    if( whoAmI() != 113 ){
-        return -5;
-    }
+//
+//    // check the WHO AM I byte, expected value is 0x71 (decimal 113)
+//    if( whoAmI() != 113 ){
+//        return -5;
+//    }
 
     // enable accelerometer and gyro
     if( !writeRegister(PWR_MGMNT_2,SEN_ENABLE) ){
@@ -214,7 +230,7 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
     DELAY_MS(100); // long wait between AK8963 mode changes
 
     // read the AK8963 ASA registers and compute magnetometer scale factors
-    readAK8963Registers(AK8963_ASA,sizeof(buff),&buff[0]);
+    readAK8963Registers(AK8963_ASA,3,&buff[0]);
     _magScaleX = ((((float)buff[0]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
     _magScaleY = ((((float)buff[1]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
     _magScaleZ = ((((float)buff[2]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
@@ -246,7 +262,7 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
 
 /* sets the DLPF and interrupt settings */
 int32_t setFilt(mpu9250_dlpf_bandwidth bandwidth, uint8_t SRD){
-    uint8_t data[7];
+    uint8_t data[7] = {0,};
 
     switch(bandwidth) {
         case DLPF_BANDWIDTH_184HZ:
@@ -364,11 +380,10 @@ int32_t enableInt(uint8_t enable){
 
 /* get accelerometer data given pointers to store the three values, return data as counts */
 void getAccelCounts(int16_t* ax, int16_t* ay, int16_t* az){
-    uint8_t buff[6] = {0,};
     int16_t axx, ayy, azz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(ACCEL_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(ACCEL_OUT, 6, &buff[0]); // grab the data from the MPU9250
 
     axx = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit values
     ayy = (((int16_t)buff[2]) << 8) | buff[3];
@@ -392,11 +407,10 @@ void getAccel(float* ax, float* ay, float* az){
 
 /* get gyro data given pointers to store the three values, return data as counts */
 void getGyroCounts(int16_t* gx, int16_t* gy, int16_t* gz){
-    uint8_t buff[6] = {0,};
     int16_t gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(GYRO_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(GYRO_OUT, 6, &buff[0]); // grab the data from the MPU9250
 
     gxx = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit values
     gyy = (((int16_t)buff[2]) << 8) | buff[3];
@@ -420,11 +434,10 @@ void getGyro(float* gx, float* gy, float* gz){
 
 /* get magnetometer data given pointers to store the three values, return data as counts */
 void getMagCounts(int16_t* hx, int16_t* hy, int16_t* hz){
-    uint8_t buff[7] = {0,};
     //_useSPIHS = true; // use the high speed SPI for data readout
 
     // read the magnetometer data off the external sensor buffer
-    readRegisters(EXT_SENS_DATA_00,sizeof(buff),&buff[0]);
+    readRegisters(EXT_SENS_DATA_00,7,&buff[0]);
 
     if( buff[6] == 0x10 ) { // check for overflow
         *hx = (((int16_t)buff[1]) << 8) | buff[0];  // combine into 16 bit values
@@ -451,10 +464,9 @@ void getMag(float* hx, float* hy, float* hz){
 
 /* get temperature data given pointer to store the value, return data as counts */
 void getTempCounts(int16_t* t){
-    uint8_t buff[2] = {0,};
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(TEMP_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(TEMP_OUT, 2, &buff[0]); // grab the data from the MPU9250
 
     *t = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit value and return
 }
@@ -470,11 +482,10 @@ void getTemp(float* t){
 
 /* get accelerometer and gyro data given pointers to store values, return data as counts */
 void getMotion6Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz){
-    uint8_t buff[14] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(ACCEL_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(ACCEL_OUT, 14, &buff[0]); // grab the data from the MPU9250
 
     axx = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit values
     ayy = (((int16_t)buff[2]) << 8) | buff[3];
@@ -511,11 +522,10 @@ void getMotion6(float* ax, float* ay, float* az, float* gx, float* gy, float* gz
 
 /* get accelerometer, gyro and temperature data given pointers to store values, return data as counts */
 void getMotion7Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz, int16_t* t){
-    uint8_t buff[14] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(ACCEL_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(ACCEL_OUT, 14, &buff[0]); // grab the data from the MPU9250
 
     axx = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit values
     ayy = (((int16_t)buff[2]) << 8) | buff[3];
@@ -557,11 +567,11 @@ void getMotion7(float* ax, float* ay, float* az, float* gx, float* gy, float* gz
 
 /* get accelerometer, gyro and magnetometer data given pointers to store values, return data as counts */
 void getMotion9Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz, int16_t* hx, int16_t* hy, int16_t* hz){
-    uint8_t buff[21] = {0,};
+    //uint8_t buff[21] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(ACCEL_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(ACCEL_OUT, 21, &buff[0]); // grab the data from the MPU9250
 
     axx = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit values
     ayy = (((int16_t)buff[2]) << 8) | buff[3];
@@ -607,11 +617,11 @@ void getMotion9(float* ax, float* ay, float* az, float* gx, float* gy, float* gz
 
 /* get accelerometer, magnetometer, and temperature data given pointers to store values, return data as counts */
 void getMotion10Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz, int16_t* hx, int16_t* hy, int16_t* hz, int16_t* t){
-    uint8_t buff[21] = {0,};
+    //uint8_t buff[21] = {0,};
     int16_t axx, ayy, azz, gxx, gyy, gzz;
     //_useSPIHS = true; // use the high speed SPI for data readout
 
-    readRegisters(ACCEL_OUT, sizeof(buff), &buff[0]); // grab the data from the MPU9250
+    readRegisters(ACCEL_OUT, 21, &buff[0]); // grab the data from the MPU9250
 
     axx = (((int16_t)buff[0]) << 8) | buff[1];  // combine into 16 bit values
     ayy = (((int16_t)buff[2]) << 8) | buff[3];
@@ -661,15 +671,16 @@ void getMotion10(float* ax, float* ay, float* az, float* gx, float* gy, float* g
 
 /* writes a byte to MPU9250 register given a register address and data */
 uint8_t writeRegister(uint8_t subAddress, uint8_t data){
-    uint8_t buff[1];
+    //uint8_t buff[1] = {0,};
+    HAL_StatusTypeDef spi_result;
 
     /* write data to device */
     if( USE_SPI ){
     	// TODO: Check if this code works
-    	CS_ON //    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
-		MPU_SPI_TX(&subAddress);//HAL_SPI_Transmit_DMA(&hspi1, &subAddress, 1);//		SPI.transfer(subAddress); // write the register address
-    	MPU_SPI_TX(&data);//HAL_SPI_Transmit_DMA(&hspi1, &data, 1);//		SPI.transfer(data); // write the data
-    	CS_OFF//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
+    	CS_ON; //    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
+    	spi_result = MPU_SPI_TX(&subAddress);//HAL_SPI_Transmit_DMA(&hspi1, &subAddress, 1);//		SPI.transfer(subAddress); // write the register address
+    	spi_result = MPU_SPI_TX(&data);//HAL_SPI_Transmit_DMA(&hspi1, &data, 1);//		SPI.transfer(data); // write the data
+    	CS_OFF;//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
 
     }
     else{
@@ -680,10 +691,10 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
     																   //      	i2c_t3(_bus).endTransmission();
     }
 
-    DELAY_uS(100); // need to slow down how fast I write to MPU9250
+    DELAY_uS(10); // need to slow down how fast I write to MPU9250
 
   	/* read back the register */
-  	readRegisters(subAddress,sizeof(buff),&buff[0]);
+  	readRegisters(subAddress,1,&buff[0]);
 
   	/* check the read back register against the written register */
   	if(buff[0] == data) {
@@ -696,22 +707,23 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
 
 /* reads registers from MPU9250 given a starting register address, number of bytes, and a pointer to store data */
 void readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
-	uint8_t buff[count];
+	//uint8_t buff[21] = {0,};
+	HAL_StatusTypeDef spi_result;
 
     if( USE_SPI ){
 
     	// TODO: Check if this code works
-    	CS_ON//    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
+    	CS_ON;//    	digitalWriteFast(_csPin,LOW); // select the MPU9250 chip
 		buff[0] = subAddress | SPI_READ;
 
-		MPU_SPI_TX(&buff[0]);//		SPI.transfer(subAddress | SPI_READ); // specify the starting register address
+		spi_result = MPU_SPI_TX(&buff[0]);//		SPI.transfer(subAddress | SPI_READ); // specify the starting register address
 
 		//for(uint8_t i = 0; i < count; i++){
 			// TODO: Verify this code as equivalent to original code with "for" statement
-			HAL_SPI_TransmitReceive_DMA(&hspi1, &buff[0], &dest[0], count);//dest[i] = SPI.transfer(0x00); // read the data
+		spi_result = HAL_SPI_TransmitReceive(&hspi1, &buff[0], &dest[0], count, 100);//dest[i] = SPI.transfer(0x00); // read the data
 		//}
 
-		CS_OFF//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
+		CS_OFF;//		digitalWriteFast(_csPin,HIGH); // deselect the MPU9250 chip
 
     }
     else{
@@ -732,7 +744,7 @@ void readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
 /* writes a register to the AK8963 given a register address and data */
 uint8_t writeAK8963Register(uint8_t subAddress, uint8_t data){
 	uint8_t count = 1;
-	uint8_t buff[1];
+	//uint8_t buff[1] = {0,};
 
 	writeRegister(I2C_SLV0_ADDR,AK8963_I2C_ADDR); // set slave 0 to the AK8963 and set for write
 	writeRegister(I2C_SLV0_REG,subAddress); // set the register to the desired AK8963 sub address
@@ -740,7 +752,7 @@ uint8_t writeAK8963Register(uint8_t subAddress, uint8_t data){
 	writeRegister(I2C_SLV0_CTRL,I2C_SLV0_EN | count); // enable I2C and send 1 byte
 
 	// read the register and confirm
-	readAK8963Registers(subAddress, sizeof(buff), &buff[0]);
+	readAK8963Registers(subAddress, 1, &buff[0]);
 
 	if(buff[0] == data) {
   		return 1;
@@ -762,10 +774,9 @@ void readAK8963Registers(uint8_t subAddress, uint8_t count, uint8_t* dest){
 
 /* gets the MPU9250 WHO_AM_I register value, expected to be 0x71 */
 uint8_t whoAmI(){
-    uint8_t buff[1] = {0,};
 
     // read the WHO AM I register
-    readRegisters(WHO_AM_I,sizeof(buff),&buff[0]);
+    readRegisters(WHO_AM_I,1,&buff[0]);
 
     // return the register value
     return buff[0];
@@ -773,10 +784,10 @@ uint8_t whoAmI(){
 
 /* gets the AK8963 WHO_AM_I register value, expected to be 0x48 */
 uint8_t whoAmIAK8963(){
-    uint8_t buff[1];
+    //uint8_t buff[1] = {0,};
 
     // read the WHO AM I register
-    readAK8963Registers(AK8963_WHO_AM_I,sizeof(buff),&buff[0]);
+    readAK8963Registers(AK8963_WHO_AM_I,1,&buff[0]);
 
     // return the register value
     return buff[0];

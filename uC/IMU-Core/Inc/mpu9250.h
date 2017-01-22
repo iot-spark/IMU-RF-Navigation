@@ -28,18 +28,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
 
+#include "stm32f4xx_hal_spi.h"
+#include "spi.h"
+#include "dwt_delay.h"
+
 // DELAY
 #define SYS_CLK 168 // SYS Clock in MHz
 #define DELAY_MS(millis) HAL_Delay(millis)
-#define DELAY_uS(micros) for(uint32_t i = 0; i < micros; i++){}
+#define DELAY_uS(micros) DWT_Delay(micros)
 
 // SPI Defines
 #define SPI_CS GPIOD, GPIO_PIN_15
-#define CS_ON HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_RESET);
-#define CS_OFF HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_SET);
+#define CS_ON HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_RESET)
+#define CS_OFF HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_SET)
 
-#define MPU_SPI_TX(data) HAL_SPI_Transmit_DMA(&hspi1, data, 1)
-#define MPU_SPI_RX(buff) HAL_SPI_(&hspi1, buff, 1)
+#define MPU_SPI_TX(data) HAL_SPI_Transmit(&hspi1, data, 1, 100)
+#define MPU_SPI_RX(buff) HAL_SPI_Receive(&hspi1, buff, 1, 100)
 #define USE_SPI 1		// Use SPI rather I2C
 #define USE_SPI_HS 0    // Configure SPI with High Speed
 #define SPI_READ 0x80;
@@ -155,7 +159,7 @@ void getMotion10Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16
 #define I2C_SLV0_EN 0x80
 #define I2C_READ_FLAG 0x80
 
-#define WHO_AM_I 0x75
+#define WHO_AM_I 0x75 // should return 0x71
 
 // AK8963 registers
 #define AK8963_I2C_ADDR 0x0C
