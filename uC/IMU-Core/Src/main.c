@@ -110,25 +110,6 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
-  // disable I2C protocol
-  //writeRegister( 0x6A, 0x10 );
-  uint8_t ad0 = 0x6A, ad1 = 0xEA, data = 0, feedback = 0;
-  uint8_t who_am_i = WHO_AM_I | SPI_READ;
-
-  CS_ON;
-  MPU_SPI_TX(&who_am_i);
-  //MPU_SPI_RX(&feedback);
-  HAL_SPI_TransmitReceive(&hspi1, &data, &feedback, 1, 100);
-
-  MPU_SPI_TX(&ad0);
-
-  data = 0x10;
-  MPU_SPI_TX(&data);
-  MPU_SPI_TX(&ad1);
-  MPU_SPI_RX(&feedback);
-  CS_OFF;
-  //DWT_Delay( 10 );
-
   volatile uint32_t *DWT_CONTROL = (uint32_t *) 0xE0001000;
   volatile uint32_t *DWT_CYCCNT = (uint32_t *) 0xE0001004;
   volatile uint32_t *DEMCR = (uint32_t *) 0xE000EDFC;
@@ -142,7 +123,6 @@ int main(void)
   //DWT_Delay(1000000);
 
   //HAL_TIM_Base_Start_IT(&htim6);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
   int32_t mpuInitResult = 0;
 

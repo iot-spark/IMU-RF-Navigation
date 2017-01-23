@@ -150,6 +150,7 @@ void getMotion10Counts(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16
 
 #define USER_CTRL 0x6A
 #define I2C_MST_EN 0x20
+#define I2C_IF_DIS 0x10
 #define I2C_MST_CLK 0x0D
 #define I2C_MST_CTRL 0x24
 #define I2C_SLV0_ADDR 0x25

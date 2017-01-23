@@ -67,13 +67,10 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
         // setting CS pin high
         HAL_GPIO_WritePin(SPI_CS, GPIO_PIN_SET);
 
-        // reset the device
-        writeRegister(0x6B, 0x80);
+        // test WhoAmI
+        whoAmI();
         DWT_Delay( 10 );
 
-        // disable I2C protocol
-        writeRegister( 0x6A, 0x10 );
-        DWT_Delay( 10 );
     }
     else{ // using I2C for communication
     	// clearing CS pin high
@@ -92,7 +89,7 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
     }
 
     // enable I2C master mode
-    if( !writeRegister(USER_CTRL,I2C_MST_EN) ){
+    if( !writeRegister(USER_CTRL,I2C_IF_DIS) ){
         return -2;
     }
 
@@ -101,29 +98,28 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
 //        return -1;
 //    }
 
-    // set AK8963 to Power Down
-    if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
-        return -3;
-    }
-
-    // reset the MPU9250
-    writeRegister(PWR_MGMNT_1,PWR_RESET);
-
-    // wait for MPU-9250 to come back up
-    DELAY_MS(100);
-
-    // reset the AK8963
-    writeAK8963Register(AK8963_CNTL2,AK8963_RESET);
+//    // set AK8963 to Power Down
+//    if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
+//        return -300;
+//    }
+//
+//    // reset the MPU9250
+//    if( !writeRegister(PWR_MGMNT_1,PWR_RESET) ){
+//    	return -301;
+//    }
+//
+//    // wait for MPU-9250 to come back up
+//    DWT_Delay( 100 );
+//
+//    // reset the AK8963
+//    if( !writeAK8963Register(AK8963_CNTL2,AK8963_RESET) ){
+//    	return -302;
+//    }
 
     // select clock source to gyro
     if( !writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) ){
         return -4;
     }
-//
-//    // check the WHO AM I byte, expected value is 0x71 (decimal 113)
-//    if( whoAmI() != 113 ){
-//        return -5;
-//    }
 
     // enable accelerometer and gyro
     if( !writeRegister(PWR_MGMNT_2,SEN_ENABLE) ){
@@ -200,52 +196,53 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
             break;
     }
 
-    // enable I2C master mode
-    if( !writeRegister(USER_CTRL,I2C_MST_EN) ){
+    // disable I2C master mode
+    if( !writeRegister(USER_CTRL,/*I2C_MST_EN*/I2C_IF_DIS) ){
     	return -31;
     }
 
 	// set the I2C bus speed to 400 kHz
-	if( !writeRegister(I2C_MST_CTRL,I2C_MST_CLK) ){
-		return -32;
-	}
+//	if( !writeRegister(I2C_MST_CTRL,I2C_MST_CLK) ){
+//		return -32;
+//	}
 
-	// check AK8963 WHO AM I register, expected value is 0x48 (decimal 72)
-	if( whoAmIAK8963() != 72 ){
-        return -33;
-	}
-
-    /* get the magnetometer calibration */
-
-    // set AK8963 to Power Down
-    if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
-        return -34;
-    }
-    DELAY_MS(100); // long wait between AK8963 mode changes
-
-    // set AK8963 to FUSE ROM access
-    if( !writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) ){
-        return -35;
-    }
-    DELAY_MS(100); // long wait between AK8963 mode changes
-
-    // read the AK8963 ASA registers and compute magnetometer scale factors
-    readAK8963Registers(AK8963_ASA,3,&buff[0]);
-    _magScaleX = ((((float)buff[0]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-    _magScaleY = ((((float)buff[1]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-    _magScaleZ = ((((float)buff[2]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
-
-    // set AK8963 to Power Down
-    if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
-        return -36;
-    }
-    DELAY_MS(100); // long wait between AK8963 mode changes
-
-    // set AK8963 to 16 bit resolution, 100 Hz update rate
-    if( !writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) ){
-        return -37;
-    }
-    DELAY_MS(100); // long wait between AK8963 mode changes
+//	// check AK8963 WHO AM I register, expected value is 0x48 (decimal 72)
+//    uint8_t ak8963 = whoAmIAK8963();
+//	if( ak8963 != 0x48 ){
+//        return -33;
+//	}
+//
+//    /* get the magnetometer calibration */
+//
+//    // set AK8963 to Power Down
+//    if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
+//        return -34;
+//    }
+//    DWT_Delay( 100 ); // long wait between AK8963 mode changes
+//
+//    // set AK8963 to FUSE ROM access
+//    if( !writeAK8963Register(AK8963_CNTL1,AK8963_FUSE_ROM) ){
+//        return -35;
+//    }
+//    DWT_Delay( 100 ); // long wait between AK8963 mode changes
+//
+//    // read the AK8963 ASA registers and compute magnetometer scale factors
+//    readAK8963Registers(AK8963_ASA,3,&buff[0]);
+//    _magScaleX = ((((float)buff[0]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
+//    _magScaleY = ((((float)buff[1]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
+//    _magScaleZ = ((((float)buff[2]) - 128.0f)/(256.0f) + 1.0f) * 4912.0f / 32760.0f; // micro Tesla
+//
+//    // set AK8963 to Power Down
+//    if( !writeAK8963Register(AK8963_CNTL1,AK8963_PWR_DOWN) ){
+//        return -36;
+//    }
+//    DWT_Delay( 100 ); // long wait between AK8963 mode changes
+//
+//    // set AK8963 to 16 bit resolution, 100 Hz update rate
+//    if( !writeAK8963Register(AK8963_CNTL1,AK8963_CNT_MEAS2) ){
+//        return -37;
+//    }
+//    DWT_Delay( 100 ); // long wait between AK8963 mode changes
 
     // select clock source to gyro
     if( !writeRegister(PWR_MGMNT_1,CLOCK_SEL_PLL) ){
@@ -253,7 +250,7 @@ int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRang
     }
 
     // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
-    readAK8963Registers(AK8963_HXL,sizeof(data),&data[0]);
+    //readAK8963Registers(AK8963_HXL,sizeof(data),&data[0]);
 
     // successful init, return 0
     return 0;
@@ -691,7 +688,7 @@ uint8_t writeRegister(uint8_t subAddress, uint8_t data){
     																   //      	i2c_t3(_bus).endTransmission();
     }
 
-    DELAY_uS(10); // need to slow down how fast I write to MPU9250
+    DWT_Delay( 10 ); // need to slow down how fast I write to MPU9250
 
   	/* read back the register */
   	readRegisters(subAddress,1,&buff[0]);
@@ -720,6 +717,7 @@ void readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
 
 		//for(uint8_t i = 0; i < count; i++){
 			// TODO: Verify this code as equivalent to original code with "for" statement
+		memset(&buff[0], 0, count);
 		spi_result = HAL_SPI_TransmitReceive(&hspi1, &buff[0], &dest[0], count, 100);//dest[i] = SPI.transfer(0x00); // read the data
 		//}
 
