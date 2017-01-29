@@ -22,6 +22,8 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <string.h>
+
 #include "MPU9250.h"
 #include "stm32f4xx_hal_i2c.h"
 #include "stm32f4xx_hal_spi.h"
@@ -50,7 +52,6 @@ static uint8_t buff[42] = {0,};
 
 /* starts I2C communication and sets up the MPU-9250 */
 int32_t Init_MPU9250(mpu9250_accel_range accelRange, mpu9250_gyro_range gyroRange){
-    uint8_t data[7] = {0,};
 
     if( USE_SPI ){ // using SPI for communication
 
@@ -717,7 +718,7 @@ void readRegisters(uint8_t subAddress, uint8_t count, uint8_t* dest){
 
 		//for(uint8_t i = 0; i < count; i++){
 			// TODO: Verify this code as equivalent to original code with "for" statement
-		memset(&buff[0], 0, count);
+		memset(buff, 0, count);
 		spi_result = HAL_SPI_TransmitReceive(&hspi1, &buff[0], &dest[0], count, 100);//dest[i] = SPI.transfer(0x00); // read the data
 		//}
 

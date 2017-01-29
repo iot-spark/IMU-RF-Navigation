@@ -44,7 +44,6 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include "crc.h"
-#include "dma.h"
 #include "fatfs.h"
 #include "i2c.h"
 #include "spi.h"
@@ -95,7 +94,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_I2C1_Init();
   MX_I2C2_Init();
   MX_I2C3_Init();
@@ -110,6 +108,9 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
+  char greets[100]="-= PRION v0.1 =-\nHello, World!\n\n";
+  HAL_StatusTypeDef status = HAL_UART_Transmit(&huart6, &greets[0], 32, 100);
+
   volatile uint32_t *DWT_CONTROL = (uint32_t *) 0xE0001000;
   volatile uint32_t *DWT_CYCCNT = (uint32_t *) 0xE0001004;
   volatile uint32_t *DEMCR = (uint32_t *) 0xE000EDFC;
@@ -120,13 +121,12 @@ int main(void)
   *DWT_CYCCNT = 0;                  // clear DWT cycle counter
   *DWT_CONTROL = *DWT_CONTROL | 1;  // enable DWT cycle counter
 
-  //DWT_Delay(1000000);
-
-  //HAL_TIM_Base_Start_IT(&htim6);
-
   int32_t mpuInitResult = 0;
 
   mpuInitResult = Init_MPU9250(ACCEL_RANGE_2G, GYRO_RANGE_250DPS);
+
+  HAL_TIM_Base_Start_IT(&htim6);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
