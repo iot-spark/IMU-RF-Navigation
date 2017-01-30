@@ -9,7 +9,7 @@
         xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="MainWindow" Height="350" Width="525">
+        Title="MainWindow" Height="600" Width="1024">
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
@@ -18,17 +18,42 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition/>
             <RowDefinition Height="Auto"/>
+            
+            <!--Bottom Gap Row-->
+            <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            
+
+            <!-- Labels and Inputs Column-->
+            <ColumnDefinition Width="250"/>
+
+            <!--Content Column-->
+            <ColumnDefinition/>
+
+            <!--Right Gap Column-->
+            <ColumnDefinition Width="20"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock Text="{Binding Path=RecordsFile, StringFormat=File: {0}}" ToolTip="{Binding RecordsFile}" Padding="5"/>
+        <TextBlock Text="{Binding Path=RecordsFile, StringFormat=File: {0}}" ToolTip="{Binding RecordsFile}" Padding="5"
+                   Grid.Column="0" Grid.ColumnSpan="2"/>
 
-        <WindowsFormsHost x:Name="zgHost" Grid.Row="1" Background="IndianRed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <WindowsFormsHost x:Name="zgHost" Grid.Row="1" Grid.Column="1">
             <i:Interaction.Behaviors>
                 <b:ZedGraphBehavior />
             </i:Interaction.Behaviors>
         </WindowsFormsHost>
+
+        <Grid Grid.Column="0" Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.ColumnSpan="2" Content="Open File" Command="{Binding OpenFileCommand}" Margin="5"/>
+        </Grid>
     </Grid>
 </Window>

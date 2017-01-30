@@ -31,7 +31,7 @@ namespace kf_ga_modelling.Behaviors
             
             _zg.Location = new System.Drawing.Point(0, 0);
             _zg.Name = "zedGraphControl1";
-            _zg.Size = new System.Drawing.Size(680, 414);
+            _zg.Size = new System.Drawing.Size(800, 600);
             _zg.TabIndex = 0;
             //_zg.Font = new System.Drawing.Font("Segoe UI", 0.2f);
 
