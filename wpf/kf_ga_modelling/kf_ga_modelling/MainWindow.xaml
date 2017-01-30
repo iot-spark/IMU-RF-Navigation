@@ -5,10 +5,11 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:kf_ga_modelling"
         xmlns:vm="clr-namespace:kf_ga_modelling.ViewModels"
+        xmlns:b="clr-namespace:kf_ga_modelling.Behaviors"
+        xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="MainWindow" Height="350" Width="525"
-        Loaded="Window_Loaded">
+        Title="MainWindow" Height="350" Width="525">
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
@@ -24,6 +25,10 @@
 
         <TextBlock Text="{Binding Path=RecordsFile, StringFormat=File: {0}}" ToolTip="{Binding RecordsFile}" Padding="5"/>
 
-        <WindowsFormsHost x:Name="zgHost" Grid.Row="1" Background="IndianRed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        <WindowsFormsHost x:Name="zgHost" Grid.Row="1" Background="IndianRed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <i:Interaction.Behaviors>
+                <b:ZedGraphBehavior />
+            </i:Interaction.Behaviors>
+        </WindowsFormsHost>
     </Grid>
 </Window>
