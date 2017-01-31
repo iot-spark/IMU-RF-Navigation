@@ -39,12 +39,19 @@
 
         <WindowsFormsHost x:Name="zgHost" Grid.Row="1" Grid.Column="1">
             <i:Interaction.Behaviors>
-                <b:ZedGraphBehavior />
+                <b:ZedGraphBehavior x:Name="MainChartController" FilePath="{Binding RecordsFile}" TrackLength="{Binding TrackLength}" />
             </i:Interaction.Behaviors>
         </WindowsFormsHost>
 
         <Grid Grid.Column="0" Grid.Row="1">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition />
             </Grid.RowDefinitions>
@@ -54,6 +61,22 @@
             </Grid.ColumnDefinitions>
 
             <Button Grid.ColumnSpan="2" Content="Open File" Command="{Binding OpenFileCommand}" Margin="5"/>
+
+            <TextBlock Text="Track Length:" Grid.Row="1" Margin="5"/>
+            <TextBox Text="{Binding TrackLength}" Grid.Row="1" Grid.Column="1" Margin="5"/>
+
+            <Button Grid.ColumnSpan="2" Grid.Row="2" Content="Show Ax" Command="{Binding ShowAxCommand, ElementName=MainChartController}" Margin="5"/>
+
+            <Button Grid.ColumnSpan="2" Grid.Row="3" Content="Show Ay" Command="{Binding ShowAyCommand, ElementName=MainChartController}" Margin="5"/>
+
+            <Button Grid.ColumnSpan="2" Grid.Row="4" Content="Show Az" Command="{Binding ShowAzCommand, ElementName=MainChartController}" Margin="5"/>
+
+            <Button Grid.ColumnSpan="2" Grid.Row="5" Content="Show Gx" Command="{Binding ShowGxCommand, ElementName=MainChartController}" Margin="5"/>
+
+            <Button Grid.ColumnSpan="2" Grid.Row="6" Content="Show Gy" Command="{Binding ShowGyCommand, ElementName=MainChartController}" Margin="5"/>
+
+            <Button Grid.ColumnSpan="2" Grid.Row="7" Content="Show Gz" Command="{Binding ShowGzCommand, ElementName=MainChartController}" Margin="5"/>
+
         </Grid>
     </Grid>
 </Window>

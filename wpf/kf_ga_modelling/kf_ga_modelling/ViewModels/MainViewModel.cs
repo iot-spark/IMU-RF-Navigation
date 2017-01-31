@@ -11,6 +11,7 @@ namespace kf_ga_modelling.ViewModels
     {
         #region Fields
         private string _recordsFile = "N/A";
+        private int _trackLength = 10000;
         ICommand _openFileCmd = null;
         #endregion
 
@@ -19,6 +20,16 @@ namespace kf_ga_modelling.ViewModels
             get { return _recordsFile; }
             set {
                 _recordsFile = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int TrackLength
+        {
+            get { return _trackLength; }
+            set
+            {
+                _trackLength = value;
                 OnPropertyChanged();
             }
         }
