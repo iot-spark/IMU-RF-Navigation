@@ -58,13 +58,17 @@
 /* USER CODE END Includes */
 
 /* USER CODE BEGIN Private defines */
-
+ //HAL_GPIO_WritePin(GPIOD, GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_SET);
+#define AD0_1 GPIO_PIN_9
+#define AD0_2 GPIO_PIN_10
+#define AD0_3 GPIO_PIN_11
+#define AD0_4 GPIO_PIN_12
 /* USER CODE END Private defines */
 
 void MX_GPIO_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-
+static inline void AD0_ON(uint16_t AD0_pin);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

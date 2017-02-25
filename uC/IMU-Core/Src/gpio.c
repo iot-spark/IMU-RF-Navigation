@@ -75,10 +75,10 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15, GPIO_PIN_SET);
 
   /*Configure GPIO pins : PD9 PD11 PD13 PD15 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_11|GPIO_PIN_13|GPIO_PIN_15;
+  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
@@ -88,6 +88,17 @@ void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 2 */
 
+/***
+ * I2C ADDRESS AD0 = 0 ==>> 1101000
+ *             AD0 = 1 ==>> 1101001
+     ***/
+static inline void
+ AD0_ON(uint16_t AD0_pin)
+ {
+	 uint16_t pins_off = (GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12) & ~(AD0_pin);
+	 HAL_GPIO_WritePin(GPIOD, pins_off, GPIO_PIN_RESET);
+	 HAL_GPIO_WritePin(GPIOD, AD0_pin, GPIO_PIN_SET);
+ }
 /* USER CODE END 2 */
 
 /**
