@@ -306,10 +306,19 @@ void TIM6_DAC_IRQHandler(void)
   HAL_TIM_IRQHandler(&htim6);
   /* USER CODE BEGIN TIM6_DAC_IRQn 1 */
 
+  uint32_t tp1 = DWT_Get();
+
   getMotion7(&ax,&ay,&az,&gx,&gy,&gz,&t);
+
+  uint32_t tp2 = DWT_Get();
 
   print_motion7(tick1,ax,ay,az,gx,gy,gz,t);
 
+  uint32_t tp3 = DWT_Get();
+
+  float dt_meas = (tp2 - tp1)/((float)SystemCoreClock), dt_print = (tp3 - tp2)/((float)SystemCoreClock), dt_ttl = (tp3-tp1)/((float)SystemCoreClock);
+
+  dt_ttl = dt_meas + dt_print;
   /* USER CODE END TIM6_DAC_IRQn 1 */
 }
 

@@ -9,17 +9,17 @@
 #include "stm32f4xx_hal.h"
 #include "usart.h"
 
-static char num_buff[20] = {0,}, split[3] = " ; ", nl[1] = {'\n'};
+static char num_buff[20] = {0,}, split[1] = ";", nl[1] = {'\n'};
 
 bool print_float(float num, bool add_split, bool add_nl)
 {
 	int lng = -1;
 
-	lng = sprintf(num_buff, "%10.6f", num);
+	lng = sprintf(num_buff, "%8.4f", num);
 
 	if (add_split)
 	{
-		HAL_UART_Transmit(&huart6, split, 3, 100);
+		HAL_UART_Transmit(&huart6, split, 1, 100);
 	}
 
 	HAL_UART_Transmit(&huart6, num_buff, lng, 100);
