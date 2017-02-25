@@ -31,10 +31,24 @@ THE SOFTWARE.
 #ifndef _MPU6500_H_
 #define _MPU6500_H_
 
+#include <stdbool.h>
+
+/* Globals
+   ================= */
+extern uint16_t MpuDevIdx = AD0_1;
+/* =================
+   End of Globals */
+
+/* Prototypes
+   ================= */
+static inline void i2cdev_readByte(uint8_t regAddr, uint8_t *data);
+static inline void i2cdev_writeByte(uint8_t regAddr, uint8_t data);
+/* =================
+   End of Prototypes */
 
 #define MPU6500_ADDRESS_AD0_LOW     0x68 // address pin low (GND), default for InvenSense evaluation board
 #define MPU6500_ADDRESS_AD0_HIGH    0x69 // address pin high (VCC)
-#define MPU6500_DEFAULT_ADDRESS     MPU6500_ADDRESS_AD0_LOW
+#define MPU6500_DEFAULT_ADDRESS     MPU6500_ADDRESS_AD0_HIGH
 
 //Product ID Description for MPU6500:  | High 4 bits  | Low 4 bits        |
 //                                     | Product Name | Product Revision  |
@@ -314,7 +328,7 @@ THE SOFTWARE.
 #define MPU6500_INTERRUPT_DATA_RDY_BIT      0
 
 // TODO: figure out what these actually do
-// UMPL source code is not very obivous
+// UMPL source code is not very obvious
 #define MPU6500_DMPINT_5_BIT            5
 #define MPU6500_DMPINT_4_BIT            4
 #define MPU6500_DMPINT_3_BIT            3

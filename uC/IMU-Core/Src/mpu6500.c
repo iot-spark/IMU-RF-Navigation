@@ -33,12 +33,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "stm32f4xx_hal_gpio.h"
+#include "stm32f4xx_hal_i2c.h"
 
+#include "i2c.h"
+#include "gpio.h"
 #include "mpu6500.h"
 
-static uint8_t devAddr;
+uint16_t MpuDevIdx = AD0_1;
+
 static uint8_t buffer[14];
-static bool isInit;
 
 static const unsigned short mpu6500StTb[256] = {
   2620,2646,2672,2699,2726,2753,2781,2808, //7
@@ -75,25 +79,33 @@ static const unsigned short mpu6500StTb[256] = {
   30903,31212,31524,31839,32157,32479,32804,33132
 };
 
+static inline void
+i2cdev_readByte(uint8_t regAddr, uint8_t *data)
+{
+	AD0_ON(MpuDevIdx);
+	HAL_I2C_Master_Transmit(&hi2c1, MPU6500_DEFAULT_ADDRESS, regAddr, 1, 100);
+	HAL_I2C_Master_Receive(&hi2c1, MPU6500_DEFAULT_ADDRESS, data, 1, 100);
+}
+
+static inline void
+i2cdev_writeByte(uint8_t regAddr, uint8_t data)
+{
+	uint8_t buf[2] = {regAddr, data};
+
+	AD0_ON(MpuDevIdx);
+	HAL_I2C_Master_Transmit(&hi2c1, MPU6500_DEFAULT_ADDRESS, &buf[0], 2, 100);
+}
 /** Default constructor, uses default I2C address.
  * @see MPU6500_DEFAULT_ADDRESS
  */
 void mpu6500Init(void)
 {
-  if (isInit)
-    return;
 
-  devAddr = MPU6500_ADDRESS_AD0_LOW;
-
-  isInit = true;
 }
 
 bool mpu6500Test(void)
 {
   bool testStatus;
-
-  if (!isInit)
-    return false;
 
   testStatus = mpu6500TestConnection();
 
@@ -106,7 +118,8 @@ bool mpu6500Test(void)
  */
 bool mpu6500TestConnection(void)
 {
-  return mpu6500GetDeviceID() == 0x38; //0x38 is MPU9250 ID with AD0 = 0;
+  uint8_t res = mpu6500GetDeviceID();
+  return res == 0x69; //0x69 is MPU6500 ID with AD0 = 1;
 }
 
 /** Do a MPU6500 self test.
@@ -125,27 +138,27 @@ bool mpu6500SelfTest(void)
   bool testStatus = false;
 
   // Save old configuration
-  i2cdev_readByte(devAddr, MPU6500_RA_SMPLRT_DIV, &saveReg[0]);
-  i2cdev_readByte(devAddr, MPU6500_RA_CONFIG, &saveReg[1]);
-  i2cdev_readByte(devAddr, MPU6500_RA_GYRO_CONFIG, &saveReg[2]);
-  i2cdev_readByte(devAddr, MPU6500_RA_ACCEL_CONFIG_2, &saveReg[3]);
-  i2cdev_readByte(devAddr, MPU6500_RA_ACCEL_CONFIG, &saveReg[4]);
+  i2cdev_readByte(MPU6500_RA_SMPLRT_DIV, &saveReg[0]);
+  i2cdev_readByte(MPU6500_RA_CONFIG, &saveReg[1]);
+  i2cdev_readByte(MPU6500_RA_GYRO_CONFIG, &saveReg[2]);
+  i2cdev_readByte(MPU6500_RA_ACCEL_CONFIG_2, &saveReg[3]);
+  i2cdev_readByte(MPU6500_RA_ACCEL_CONFIG, &saveReg[4]);
   // Write test configuration
-  i2cdev_writeByte(devAddr, MPU6500_RA_SMPLRT_DIV, 0x00); // Set gyro sample rate to 1 kHz
-  i2cdev_writeByte(devAddr, MPU6500_RA_CONFIG, 0x02); // Set gyro sample rate to 1 kHz and DLPF to 92 Hz
-  i2cdev_writeByte(devAddr, MPU6500_RA_GYRO_CONFIG, 1<<FS); // Set full scale range for the gyro to 250 dps
-  i2cdev_writeByte(devAddr, MPU6500_RA_ACCEL_CONFIG_2, 0x02); // Set accelerometer rate to 1 kHz and bandwidth to 92 Hz
-  i2cdev_writeByte(devAddr, MPU6500_RA_ACCEL_CONFIG, 1<<FS); // Set full scale range for the accelerometer to 2 g
+  i2cdev_writeByte(MPU6500_RA_SMPLRT_DIV, 0x00); // Set gyro sample rate to 1 kHz
+  i2cdev_writeByte(MPU6500_RA_CONFIG, 0x02); // Set gyro sample rate to 1 kHz and DLPF to 92 Hz
+  i2cdev_writeByte(MPU6500_RA_GYRO_CONFIG, 1<<FS); // Set full scale range for the gyro to 250 dps
+  i2cdev_writeByte(MPU6500_RA_ACCEL_CONFIG_2, 0x02); // Set accelerometer rate to 1 kHz and bandwidth to 92 Hz
+  i2cdev_writeByte(MPU6500_RA_ACCEL_CONFIG, 1<<FS); // Set full scale range for the accelerometer to 2 g
 
   for(i = 0; i < 200; i++)
   {
     // get average current values of gyro and acclerometer
-    i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_XOUT_H, 6, &rawData[0]); // Read the six raw data registers into data array
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_XOUT_H, 6, &rawData[0]); // Read the six raw data registers into data array
     aAvg[0] += (int16_t)(((int16_t)rawData[0] << 8) | rawData[1]) ; // Turn the MSB and LSB into a signed 16-bit value
     aAvg[1] += (int16_t)(((int16_t)rawData[2] << 8) | rawData[3]) ;
     aAvg[2] += (int16_t)(((int16_t)rawData[4] << 8) | rawData[5]) ;
 
-    i2cdev_readBytes(devAddr, MPU6500_RA_GYRO_XOUT_H, 6, &rawData[0]); // Read the six raw data registers sequentially into data array
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_XOUT_H, 6, &rawData[0]); // Read the six raw data registers sequentially into data array
     gAvg[0] += (int16_t)((int16_t)rawData[0] << 8) | rawData[1]; // Turn the MSB and LSB into a signed 16-bit value
     gAvg[1] += (int16_t)((int16_t)rawData[2] << 8) | rawData[3];
     gAvg[2] += (int16_t)((int16_t)rawData[4] << 8) | rawData[5];
@@ -158,19 +171,19 @@ bool mpu6500SelfTest(void)
   }
 
   // Configure the accelerometer for self-test
-  i2cdev_writeByte(devAddr, MPU6500_RA_ACCEL_CONFIG, 0xE0); // Enable self test on all three axes and set accelerometer range to +/- 2 g
-  i2cdev_writeByte(devAddr, MPU6500_RA_GYRO_CONFIG, 0xE0); // Enable self test on all three axes and set gyro range to +/- 250 degrees/s
+  i2cdev_writeByte(MPU6500_RA_ACCEL_CONFIG, 0xE0); // Enable self test on all three axes and set accelerometer range to +/- 2 g
+  i2cdev_writeByte(MPU6500_RA_GYRO_CONFIG, 0xE0); // Enable self test on all three axes and set gyro range to +/- 250 degrees/s
   nrf_delay_ms(25); // Delay a while to let the device stabilize
 
   for(i = 0; i < 200; i++)
   {
     // get average self-test values of gyro and acclerometer
-    i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_XOUT_H, 6, &rawData[0]); // Read the six raw data registers into data array
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_XOUT_H, 6, &rawData[0]); // Read the six raw data registers into data array
     aSTAvg[0] += (int16_t)(((int16_t)rawData[0] << 8) | rawData[1]) ; // Turn the MSB and LSB into a signed 16-bit value
     aSTAvg[1] += (int16_t)(((int16_t)rawData[2] << 8) | rawData[3]) ;
     aSTAvg[2] += (int16_t)(((int16_t)rawData[4] << 8) | rawData[5]) ;
 
-    i2cdev_readBytes(devAddr, MPU6500_RA_GYRO_XOUT_H, 6, &rawData[0]); // Read the six raw data registers sequentially into data array
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_XOUT_H, 6, &rawData[0]); // Read the six raw data registers sequentially into data array
     gSTAvg[0] += (int16_t)(((int16_t)rawData[0] << 8) | rawData[1]) ; // Turn the MSB and LSB into a signed 16-bit value
     gSTAvg[1] += (int16_t)(((int16_t)rawData[2] << 8) | rawData[3]) ;
     gSTAvg[2] += (int16_t)(((int16_t)rawData[4] << 8) | rawData[5]) ;
@@ -183,17 +196,17 @@ bool mpu6500SelfTest(void)
   }
 
    // Configure the gyro and accelerometer for normal operation
-   i2cdev_writeByte(devAddr, MPU6500_RA_ACCEL_CONFIG, 0x00);
-   i2cdev_writeByte(devAddr, MPU6500_RA_GYRO_CONFIG, 0x00);
+   i2cdev_writeByte(MPU6500_RA_ACCEL_CONFIG, 0x00);
+   i2cdev_writeByte(MPU6500_RA_GYRO_CONFIG, 0x00);
    nrf_delay_ms(25); // Delay a while to let the device stabilize
 
    // Retrieve accelerometer and gyro factory Self-Test Code from USR_Reg
-   i2cdev_readByte(devAddr, MPU6500_RA_ST_X_ACCEL, &selfTest[0]); // X-axis accel self-test results
-   i2cdev_readByte(devAddr, MPU6500_RA_ST_Y_ACCEL, &selfTest[1]); // Y-axis accel self-test results
-   i2cdev_readByte(devAddr, MPU6500_RA_ST_Z_ACCEL, &selfTest[2]); // Z-axis accel self-test results
-   i2cdev_readByte(devAddr, MPU6500_RA_ST_X_GYRO, &selfTest[3]); // X-axis gyro self-test results
-   i2cdev_readByte(devAddr, MPU6500_RA_ST_Y_GYRO, &selfTest[4]); // Y-axis gyro self-test results
-   i2cdev_readByte(devAddr, MPU6500_RA_ST_Z_GYRO, &selfTest[5]); // Z-axis gyro self-test results
+   i2cdev_readByte(MPU6500_RA_ST_X_ACCEL, &selfTest[0]); // X-axis accel self-test results
+   i2cdev_readByte(MPU6500_RA_ST_Y_ACCEL, &selfTest[1]); // Y-axis accel self-test results
+   i2cdev_readByte(MPU6500_RA_ST_Z_ACCEL, &selfTest[2]); // Z-axis accel self-test results
+   i2cdev_readByte(MPU6500_RA_ST_X_GYRO, &selfTest[3]); // X-axis gyro self-test results
+   i2cdev_readByte(MPU6500_RA_ST_Y_GYRO, &selfTest[4]); // Y-axis gyro self-test results
+   i2cdev_readByte(MPU6500_RA_ST_Z_GYRO, &selfTest[5]); // Z-axis gyro self-test results
 
    for (i = 0; i < 6; i++)
    {
@@ -218,11 +231,11 @@ bool mpu6500SelfTest(void)
   }
 
   // Restore old configuration
-  i2cdev_writeByte(devAddr, MPU6500_RA_SMPLRT_DIV, saveReg[0]);
-  i2cdev_writeByte(devAddr, MPU6500_RA_CONFIG, saveReg[1]);
-  i2cdev_writeByte(devAddr, MPU6500_RA_GYRO_CONFIG, saveReg[2]);
-  i2cdev_writeByte(devAddr, MPU6500_RA_ACCEL_CONFIG_2, saveReg[3]);
-  i2cdev_writeByte(devAddr, MPU6500_RA_ACCEL_CONFIG, saveReg[4]);
+  i2cdev_writeByte(MPU6500_RA_SMPLRT_DIV, saveReg[0]);
+  i2cdev_writeByte(MPU6500_RA_CONFIG, saveReg[1]);
+  i2cdev_writeByte(MPU6500_RA_GYRO_CONFIG, saveReg[2]);
+  i2cdev_writeByte(MPU6500_RA_ACCEL_CONFIG_2, saveReg[3]);
+  i2cdev_writeByte(MPU6500_RA_ACCEL_CONFIG, saveReg[4]);
 
    // Check result
   if (mpu6500EvaluateSelfTest(MPU6500_ST_GYRO_LOW, MPU6500_ST_GYRO_HIGH, gDiff[0], "gyro X") &&
@@ -282,7 +295,7 @@ bool mpu6500EvaluateSelfTest(float low, float high, float value, char* string)
  */
 uint8_t mpu6500GetRate()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_SMPLRT_DIV, buffer);
+  i2cdev_readByte(MPU6500_RA_SMPLRT_DIV, buffer);
   return buffer[0];
 }
 /** Set gyroscope sample rate divider.
@@ -292,7 +305,7 @@ uint8_t mpu6500GetRate()
  */
 void mpu6500SetRate(uint8_t rate)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_SMPLRT_DIV, rate);
+  i2cdev_writeByte(MPU6500_RA_SMPLRT_DIV, rate);
 }
 
 // CONFIG register
@@ -326,7 +339,7 @@ void mpu6500SetRate(uint8_t rate)
  */
 uint8_t mpu6500GetExternalFrameSync()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_CONFIG, MPU6500_CFG_EXT_SYNC_SET_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_CONFIG, MPU6500_CFG_EXT_SYNC_SET_BIT,
       MPU6500_CFG_EXT_SYNC_SET_LENGTH, buffer);
   return buffer[0];
 }
@@ -337,7 +350,7 @@ uint8_t mpu6500GetExternalFrameSync()
  */
 void mpu6500SetExternalFrameSync(uint8_t sync)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_CONFIG, MPU6500_CFG_EXT_SYNC_SET_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_CONFIG, MPU6500_CFG_EXT_SYNC_SET_BIT,
       MPU6500_CFG_EXT_SYNC_SET_LENGTH, sync);
 }
 /** Get digital low-pass filter configuration.
@@ -370,7 +383,7 @@ void mpu6500SetExternalFrameSync(uint8_t sync)
  */
 uint8_t mpu6500GetDLPFMode()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_CONFIG, MPU6500_CFG_DLPF_CFG_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_CONFIG, MPU6500_CFG_DLPF_CFG_BIT,
       MPU6500_CFG_DLPF_CFG_LENGTH, buffer);
   return buffer[0];
 }
@@ -384,7 +397,7 @@ uint8_t mpu6500GetDLPFMode()
  */
 void mpu6500SetDLPFMode(uint8_t mode)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_CONFIG, MPU6500_CFG_DLPF_CFG_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_CONFIG, MPU6500_CFG_DLPF_CFG_BIT,
       MPU6500_CFG_DLPF_CFG_LENGTH, mode);
 }
 
@@ -409,7 +422,7 @@ void mpu6500SetDLPFMode(uint8_t mode)
  */
 uint8_t mpu6500GetFullScaleGyroRangeId()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_FS_SEL_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_FS_SEL_BIT,
       MPU6500_GCONFIG_FS_SEL_LENGTH, buffer);
   return buffer[0];
 }
@@ -460,23 +473,23 @@ float mpu6500GetFullScaleGyroDPL()
  */
 void mpu6500SetFullScaleGyroRange(uint8_t range)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_FS_SEL_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_FS_SEL_BIT,
       MPU6500_GCONFIG_FS_SEL_LENGTH, range);
 }
 
 void mpu6500SetGyroXSelfTest(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_XG_ST_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_XG_ST_BIT, enabled);
 }
 
 void mpu6500SetGyroYSelfTest(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_YG_ST_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_YG_ST_BIT, enabled);
 }
 
 void mpu6500SetGyroZSelfTest(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_ZG_ST_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_CONFIG, MPU6500_GCONFIG_ZG_ST_BIT, enabled);
 }
 
 // ACCEL_CONFIG register
@@ -487,7 +500,7 @@ void mpu6500SetGyroZSelfTest(bool enabled)
  */
 bool mpu6500GetAccelXSelfTest()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_XA_ST_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_XA_ST_BIT, buffer);
   return buffer[0];
 }
 /** Get self-test enabled setting for accelerometer X axis.
@@ -496,7 +509,7 @@ bool mpu6500GetAccelXSelfTest()
  */
 void mpu6500SetAccelXSelfTest(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_XA_ST_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_XA_ST_BIT, enabled);
 }
 /** Get self-test enabled value for accelerometer Y axis.
  * @return Self-test enabled value
@@ -504,7 +517,7 @@ void mpu6500SetAccelXSelfTest(bool enabled)
  */
 bool mpu6500GetAccelYSelfTest()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_YA_ST_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_YA_ST_BIT, buffer);
   return buffer[0];
 }
 /** Get self-test enabled value for accelerometer Y axis.
@@ -513,7 +526,7 @@ bool mpu6500GetAccelYSelfTest()
  */
 void mpu6500SetAccelYSelfTest(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_YA_ST_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_YA_ST_BIT, enabled);
 }
 /** Get self-test enabled value for accelerometer Z axis.
  * @return Self-test enabled value
@@ -521,7 +534,7 @@ void mpu6500SetAccelYSelfTest(bool enabled)
  */
 bool mpu6500GetAccelZSelfTest()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ZA_ST_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ZA_ST_BIT, buffer);
   return buffer[0];
 }
 /** Set self-test enabled value for accelerometer Z axis.
@@ -530,7 +543,7 @@ bool mpu6500GetAccelZSelfTest()
  */
 void mpu6500SetAccelZSelfTest(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ZA_ST_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ZA_ST_BIT, enabled);
 }
 /** Get full-scale accelerometer range.
  * The FS_SEL parameter allows setting the full-scale range of the accelerometer
@@ -551,7 +564,7 @@ void mpu6500SetAccelZSelfTest(bool enabled)
  */
 uint8_t mpu6500GetFullScaleAccelRangeId()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_AFS_SEL_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_AFS_SEL_BIT,
       MPU6500_ACONFIG_AFS_SEL_LENGTH, buffer);
   return buffer[0];
 }
@@ -598,7 +611,7 @@ float mpu6500GetFullScaleAccelGPL()
  */
 void mpu6500SetFullScaleAccelRange(uint8_t range)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_AFS_SEL_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_AFS_SEL_BIT,
       MPU6500_ACONFIG_AFS_SEL_LENGTH, range);
 }
 /** Get the high-pass filter configuration.
@@ -638,7 +651,7 @@ void mpu6500SetFullScaleAccelRange(uint8_t range)
  */
 uint8_t mpu6500GetDHPFMode()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ACCEL_HPF_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ACCEL_HPF_BIT,
       MPU6500_ACONFIG_ACCEL_HPF_LENGTH, buffer);
   return buffer[0];
 }
@@ -650,7 +663,7 @@ uint8_t mpu6500GetDHPFMode()
  */
 void mpu6500SetDHPFMode(uint8_t bandwidth)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ACCEL_HPF_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_CONFIG, MPU6500_ACONFIG_ACCEL_HPF_BIT,
       MPU6500_ACONFIG_ACCEL_HPF_LENGTH, bandwidth);
 }
 
@@ -664,7 +677,7 @@ void mpu6500SetDHPFMode(uint8_t bandwidth)
  */
 bool mpu6500GetTempFIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_TEMP_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_TEMP_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set temperature FIFO enabled value.
@@ -674,7 +687,7 @@ bool mpu6500GetTempFIFOEnabled()
  */
 void mpu6500SetTempFIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_TEMP_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_TEMP_FIFO_EN_BIT, enabled);
 }
 /** Get gyroscope X-axis FIFO enabled value.
  * When set to 1, this bit enables GYRO_XOUT_H and GYRO_XOUT_L (Registers 67 and
@@ -684,7 +697,7 @@ void mpu6500SetTempFIFOEnabled(bool enabled)
  */
 bool mpu6500GetXGyroFIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_XG_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_XG_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set gyroscope X-axis FIFO enabled value.
@@ -694,7 +707,7 @@ bool mpu6500GetXGyroFIFOEnabled()
  */
 void mpu6500SetXGyroFIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_XG_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_XG_FIFO_EN_BIT, enabled);
 }
 /** Get gyroscope Y-axis FIFO enabled value.
  * When set to 1, this bit enables GYRO_YOUT_H and GYRO_YOUT_L (Registers 69 and
@@ -704,7 +717,7 @@ void mpu6500SetXGyroFIFOEnabled(bool enabled)
  */
 bool mpu6500GetYGyroFIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_YG_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_YG_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set gyroscope Y-axis FIFO enabled value.
@@ -714,7 +727,7 @@ bool mpu6500GetYGyroFIFOEnabled()
  */
 void mpu6500SetYGyroFIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_YG_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_YG_FIFO_EN_BIT, enabled);
 }
 /** Get gyroscope Z-axis FIFO enabled value.
  * When set to 1, this bit enables GYRO_ZOUT_H and GYRO_ZOUT_L (Registers 71 and
@@ -724,7 +737,7 @@ void mpu6500SetYGyroFIFOEnabled(bool enabled)
  */
 bool mpu6500GetZGyroFIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_ZG_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_ZG_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set gyroscope Z-axis FIFO enabled value.
@@ -734,7 +747,7 @@ bool mpu6500GetZGyroFIFOEnabled()
  */
 void mpu6500SetZGyroFIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_ZG_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_ZG_FIFO_EN_BIT, enabled);
 }
 /** Get accelerometer FIFO enabled value.
  * When set to 1, this bit enables ACCEL_XOUT_H, ACCEL_XOUT_L, ACCEL_YOUT_H,
@@ -745,7 +758,7 @@ void mpu6500SetZGyroFIFOEnabled(bool enabled)
  */
 bool mpu6500GetAccelFIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_ACCEL_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_ACCEL_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set accelerometer FIFO enabled value.
@@ -755,7 +768,7 @@ bool mpu6500GetAccelFIFOEnabled()
  */
 void mpu6500SetAccelFIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_ACCEL_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_ACCEL_FIFO_EN_BIT, enabled);
 }
 /** Get Slave 2 FIFO enabled value.
  * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
@@ -765,7 +778,7 @@ void mpu6500SetAccelFIFOEnabled(bool enabled)
  */
 bool mpu6500GetSlave2FIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_SLV2_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_SLV2_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set Slave 2 FIFO enabled value.
@@ -775,7 +788,7 @@ bool mpu6500GetSlave2FIFOEnabled()
  */
 void mpu6500SetSlave2FIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_SLV2_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_SLV2_FIFO_EN_BIT, enabled);
 }
 /** Get Slave 1 FIFO enabled value.
  * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
@@ -785,7 +798,7 @@ void mpu6500SetSlave2FIFOEnabled(bool enabled)
  */
 bool mpu6500GetSlave1FIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_SLV1_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_SLV1_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set Slave 1 FIFO enabled value.
@@ -795,7 +808,7 @@ bool mpu6500GetSlave1FIFOEnabled()
  */
 void mpu6500SetSlave1FIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_SLV1_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_SLV1_FIFO_EN_BIT, enabled);
 }
 /** Get Slave 0 FIFO enabled value.
  * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
@@ -805,7 +818,7 @@ void mpu6500SetSlave1FIFOEnabled(bool enabled)
  */
 bool mpu6500GetSlave0FIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_SLV0_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_SLV0_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set Slave 0 FIFO enabled value.
@@ -815,7 +828,7 @@ bool mpu6500GetSlave0FIFOEnabled()
  */
 void mpu6500SetSlave0FIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_FIFO_EN, MPU6500_SLV0_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_EN, MPU6500_SLV0_FIFO_EN_BIT, enabled);
 }
 
 // I2C_MST_CTRL register
@@ -837,7 +850,7 @@ void mpu6500SetSlave0FIFOEnabled(bool enabled)
  */
 bool mpu6500GetMultiMasterEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_MULT_MST_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_MULT_MST_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set multi-master enabled value.
@@ -847,7 +860,7 @@ bool mpu6500GetMultiMasterEnabled()
  */
 void mpu6500SetMultiMasterEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_MULT_MST_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_MULT_MST_EN_BIT, enabled);
 }
 /** Get wait-for-external-sensor-data enabled value.
  * When the WAIT_FOR_ES bit is set to 1, the Data Ready interrupt will be
@@ -862,7 +875,7 @@ void mpu6500SetMultiMasterEnabled(bool enabled)
  */
 bool mpu6500GetWaitForExternalSensorEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_WAIT_FOR_ES_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_WAIT_FOR_ES_BIT, buffer);
   return buffer[0];
 }
 /** Set wait-for-external-sensor-data enabled value.
@@ -872,7 +885,7 @@ bool mpu6500GetWaitForExternalSensorEnabled()
  */
 void mpu6500SetWaitForExternalSensorEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_WAIT_FOR_ES_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_WAIT_FOR_ES_BIT, enabled);
 }
 /** Get Slave 3 FIFO enabled value.
  * When set to 1, this bit enables EXT_SENS_DATA registers (Registers 73 to 96)
@@ -882,7 +895,7 @@ void mpu6500SetWaitForExternalSensorEnabled(bool enabled)
  */
 bool mpu6500GetSlave3FIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_SLV_3_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_SLV_3_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set Slave 3 FIFO enabled value.
@@ -892,7 +905,7 @@ bool mpu6500GetSlave3FIFOEnabled()
  */
 void mpu6500SetSlave3FIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_SLV_3_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_SLV_3_FIFO_EN_BIT, enabled);
 }
 /** Get slave read/write transition enabled value.
  * The I2C_MST_P_NSR bit configures the I2C Master's transition from one slave
@@ -906,7 +919,7 @@ void mpu6500SetSlave3FIFOEnabled(bool enabled)
  */
 bool mpu6500GetSlaveReadWriteTransitionEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_P_NSR_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_P_NSR_BIT, buffer);
   return buffer[0];
 }
 /** Set slave read/write transition enabled value.
@@ -916,7 +929,7 @@ bool mpu6500GetSlaveReadWriteTransitionEnabled()
  */
 void mpu6500SetSlaveReadWriteTransitionEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_P_NSR_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_P_NSR_BIT, enabled);
 }
 /** Get I2C master clock speed.
  * I2C_MST_CLK is a 4 bit unsigned value which configures a divider on the
@@ -949,7 +962,7 @@ void mpu6500SetSlaveReadWriteTransitionEnabled(bool enabled)
  */
 uint8_t mpu6500GetMasterClockSpeed()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_CLK_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_CLK_BIT,
       MPU6500_I2C_MST_CLK_LENGTH, buffer);
   return buffer[0];
 }
@@ -959,7 +972,7 @@ uint8_t mpu6500GetMasterClockSpeed()
  */
 void mpu6500SetMasterClockSpeed(uint8_t speed)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_CLK_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_CTRL, MPU6500_I2C_MST_CLK_BIT,
       MPU6500_I2C_MST_CLK_LENGTH, speed);
 }
 
@@ -1010,7 +1023,7 @@ uint8_t mpu6500GetSlaveAddress(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readByte(devAddr, MPU6500_RA_I2C_SLV0_ADDR + num * 3, buffer);
+  i2cdev_readByte(MPU6500_RA_I2C_SLV0_ADDR + num * 3, buffer);
   return buffer[0];
 }
 /** Set the I2C address of the specified slave (0-3).
@@ -1023,7 +1036,7 @@ void mpu6500SetSlaveAddress(uint8_t num, uint8_t address)
 {
   if (num > 3)
     return;
-  i2cdev_writeByte(devAddr, MPU6500_RA_I2C_SLV0_ADDR + num * 3, address);
+  i2cdev_writeByte(MPU6500_RA_I2C_SLV0_ADDR + num * 3, address);
 }
 /** Get the active internal register for the specified slave (0-3).
  * Read/write operations for this slave will be done to whatever internal
@@ -1040,7 +1053,7 @@ uint8_t mpu6500GetSlaveRegister(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readByte(devAddr, MPU6500_RA_I2C_SLV0_REG + num * 3, buffer);
+  i2cdev_readByte(MPU6500_RA_I2C_SLV0_REG + num * 3, buffer);
   return buffer[0];
 }
 /** Set the active internal register for the specified slave (0-3).
@@ -1053,7 +1066,7 @@ void mpu6500SetSlaveRegister(uint8_t num, uint8_t reg)
 {
   if (num > 3)
     return;
-  i2cdev_writeByte(devAddr, MPU6500_RA_I2C_SLV0_REG + num * 3, reg);
+  i2cdev_writeByte(MPU6500_RA_I2C_SLV0_REG + num * 3, reg);
 }
 /** Get the enabled value for the specified slave (0-3).
  * When set to 1, this bit enables Slave 0 for data transfer operations. When
@@ -1066,7 +1079,7 @@ bool mpu6500GetSlaveEnabled(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set the enabled value for the specified slave (0-3).
@@ -1079,7 +1092,7 @@ void mpu6500SetSlaveEnabled(uint8_t num, bool enabled)
 {
   if (num > 3)
     return;
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_EN_BIT,
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_EN_BIT,
       enabled);
 }
 /** Get word pair byte-swapping enabled for the specified slave (0-3).
@@ -1097,7 +1110,7 @@ bool mpu6500GetSlaveWordByteSwap(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_BYTE_SW_BIT,
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_BYTE_SW_BIT,
       buffer);
   return buffer[0];
 }
@@ -1111,7 +1124,7 @@ void mpu6500SetSlaveWordByteSwap(uint8_t num, bool enabled)
 {
   if (num > 3)
     return;
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_BYTE_SW_BIT,
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_BYTE_SW_BIT,
       enabled);
 }
 /** Get write mode for the specified slave (0-3).
@@ -1128,7 +1141,7 @@ bool mpu6500GetSlaveWriteMode(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_REG_DIS_BIT,
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_REG_DIS_BIT,
       buffer);
   return buffer[0];
 }
@@ -1142,7 +1155,7 @@ void mpu6500SetSlaveWriteMode(uint8_t num, bool mode)
 {
   if (num > 3)
     return;
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_REG_DIS_BIT,
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_REG_DIS_BIT,
       mode);
 }
 /** Get word pair grouping order offset for the specified slave (0-3).
@@ -1160,7 +1173,7 @@ bool mpu6500GetSlaveWordGroupOffset(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_GRP_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_GRP_BIT, buffer);
   return buffer[0];
 }
 /** Set word pair grouping order offset for the specified slave (0-3).
@@ -1173,7 +1186,7 @@ void mpu6500SetSlaveWordGroupOffset(uint8_t num, bool enabled)
 {
   if (num > 3)
     return;
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_GRP_BIT,
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_GRP_BIT,
       enabled);
 }
 /** Get number of bytes to read for the specified slave (0-3).
@@ -1187,7 +1200,7 @@ uint8_t mpu6500GetSlaveDataLength(uint8_t num)
 {
   if (num > 3)
     return 0;
-  i2cdev_readBits(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_LEN_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_LEN_BIT,
       MPU6500_I2C_SLV_LEN_LENGTH, buffer);
   return buffer[0];
 }
@@ -1201,7 +1214,7 @@ void mpu6500SetSlaveDataLength(uint8_t num, uint8_t length)
 {
   if (num > 3)
     return;
-  i2cdev_writeBits(devAddr, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_LEN_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV0_CTRL + num * 3, MPU6500_I2C_SLV_LEN_BIT,
       MPU6500_I2C_SLV_LEN_LENGTH, length);
 }
 
@@ -1218,7 +1231,7 @@ void mpu6500SetSlaveDataLength(uint8_t num, uint8_t length)
  */
 uint8_t mpu6500GetSlave4Address()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_I2C_SLV4_ADDR, buffer);
+  i2cdev_readByte(MPU6500_RA_I2C_SLV4_ADDR, buffer);
   return buffer[0];
 }
 /** Set the I2C address of Slave 4.
@@ -1228,7 +1241,7 @@ uint8_t mpu6500GetSlave4Address()
  */
 void mpu6500SetSlave4Address(uint8_t address)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_I2C_SLV4_ADDR, address);
+  i2cdev_writeByte(MPU6500_RA_I2C_SLV4_ADDR, address);
 }
 /** Get the active internal register for the Slave 4.
  * Read/write operations for this slave will be done to whatever internal
@@ -1239,7 +1252,7 @@ void mpu6500SetSlave4Address(uint8_t address)
  */
 uint8_t mpu6500GetSlave4Register()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_I2C_SLV4_REG, buffer);
+  i2cdev_readByte(MPU6500_RA_I2C_SLV4_REG, buffer);
   return buffer[0];
 }
 /** Set the active internal register for Slave 4.
@@ -1249,7 +1262,7 @@ uint8_t mpu6500GetSlave4Register()
  */
 void mpu6500SetSlave4Register(uint8_t reg)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_I2C_SLV4_REG, reg);
+  i2cdev_writeByte(MPU6500_RA_I2C_SLV4_REG, reg);
 }
 /** Set new byte to write to Slave 4.
  * This register stores the data to be written into the Slave 4. If I2C_SLV4_RW
@@ -1259,7 +1272,7 @@ void mpu6500SetSlave4Register(uint8_t reg)
  */
 void mpu6500SetSlave4OutputByte(uint8_t data)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_I2C_SLV4_DO, data);
+  i2cdev_writeByte(MPU6500_RA_I2C_SLV4_DO, data);
 }
 /** Get the enabled value for the Slave 4.
  * When set to 1, this bit enables Slave 4 for data transfer operations. When
@@ -1269,7 +1282,7 @@ void mpu6500SetSlave4OutputByte(uint8_t data)
  */
 bool mpu6500GetSlave4Enabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set the enabled value for Slave 4.
@@ -1279,7 +1292,7 @@ bool mpu6500GetSlave4Enabled()
  */
 void mpu6500SetSlave4Enabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_EN_BIT, enabled);
 }
 /** Get the enabled value for Slave 4 transaction interrupts.
  * When set to 1, this bit enables the generation of an interrupt signal upon
@@ -1292,7 +1305,7 @@ void mpu6500SetSlave4Enabled(bool enabled)
  */
 bool mpu6500GetSlave4InterruptEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_INT_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_INT_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set the enabled value for Slave 4 transaction interrupts.
@@ -1302,7 +1315,7 @@ bool mpu6500GetSlave4InterruptEnabled()
  */
 void mpu6500SetSlave4InterruptEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_INT_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_INT_EN_BIT, enabled);
 }
 /** Get write mode for Slave 4.
  * When set to 1, the transaction will read or write data only. When cleared to
@@ -1315,7 +1328,7 @@ void mpu6500SetSlave4InterruptEnabled(bool enabled)
  */
 bool mpu6500GetSlave4WriteMode()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_REG_DIS_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_REG_DIS_BIT, buffer);
   return buffer[0];
 }
 /** Set write mode for the Slave 4.
@@ -1325,7 +1338,7 @@ bool mpu6500GetSlave4WriteMode()
  */
 void mpu6500SetSlave4WriteMode(bool mode)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_REG_DIS_BIT, mode);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_REG_DIS_BIT, mode);
 }
 /** Get Slave 4 master delay value.
  * This configures the reduced access rate of I2C slaves relative to the Sample
@@ -1344,7 +1357,7 @@ void mpu6500SetSlave4WriteMode(bool mode)
  */
 uint8_t mpu6500GetSlave4MasterDelay()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_MST_DLY_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_MST_DLY_BIT,
       MPU6500_I2C_SLV4_MST_DLY_LENGTH, buffer);
   return buffer[0];
 }
@@ -1355,7 +1368,7 @@ uint8_t mpu6500GetSlave4MasterDelay()
  */
 void mpu6500SetSlave4MasterDelay(uint8_t delay)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_MST_DLY_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_SLV4_CTRL, MPU6500_I2C_SLV4_MST_DLY_BIT,
       MPU6500_I2C_SLV4_MST_DLY_LENGTH, delay);
 }
 /** Get last available byte read from Slave 4.
@@ -1366,7 +1379,7 @@ void mpu6500SetSlave4MasterDelay(uint8_t delay)
  */
 uint8_t mpu6500GetSlate4InputByte()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_I2C_SLV4_DI, buffer);
+  i2cdev_readByte(MPU6500_RA_I2C_SLV4_DI, buffer);
   return buffer[0];
 }
 
@@ -1383,7 +1396,7 @@ uint8_t mpu6500GetSlate4InputByte()
  */
 bool mpu6500GetPassthroughStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_PASS_THROUGH_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_PASS_THROUGH_BIT, buffer);
   return buffer[0];
 }
 /** Get Slave 4 transaction done status.
@@ -1396,7 +1409,7 @@ bool mpu6500GetPassthroughStatus()
  */
 bool mpu6500GetSlave4IsDone()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV4_DONE_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV4_DONE_BIT, buffer);
   return buffer[0];
 }
 /** Get master arbitration lost status.
@@ -1408,7 +1421,7 @@ bool mpu6500GetSlave4IsDone()
  */
 bool mpu6500GetLostArbitration()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_LOST_ARB_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_LOST_ARB_BIT, buffer);
   return buffer[0];
 }
 /** Get Slave 4 NACK status.
@@ -1420,7 +1433,7 @@ bool mpu6500GetLostArbitration()
  */
 bool mpu6500GetSlave4Nack()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV4_NACK_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV4_NACK_BIT, buffer);
   return buffer[0];
 }
 /** Get Slave 3 NACK status.
@@ -1432,7 +1445,7 @@ bool mpu6500GetSlave4Nack()
  */
 bool mpu6500GetSlave3Nack()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV3_NACK_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV3_NACK_BIT, buffer);
   return buffer[0];
 }
 /** Get Slave 2 NACK status.
@@ -1444,7 +1457,7 @@ bool mpu6500GetSlave3Nack()
  */
 bool mpu6500GetSlave2Nack()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV2_NACK_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV2_NACK_BIT, buffer);
   return buffer[0];
 }
 /** Get Slave 1 NACK status.
@@ -1456,7 +1469,7 @@ bool mpu6500GetSlave2Nack()
  */
 bool mpu6500GetSlave1Nack()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV1_NACK_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV1_NACK_BIT, buffer);
   return buffer[0];
 }
 /** Get Slave 0 NACK status.
@@ -1468,7 +1481,7 @@ bool mpu6500GetSlave1Nack()
  */
 bool mpu6500GetSlave0Nack()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV0_NACK_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_STATUS, MPU6500_MST_I2C_SLV0_NACK_BIT, buffer);
   return buffer[0];
 }
 
@@ -1482,7 +1495,7 @@ bool mpu6500GetSlave0Nack()
  */
 bool mpu6500GetInterruptMode()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_LEVEL_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_LEVEL_BIT, buffer);
   return buffer[0];
 }
 /** Set interrupt logic level mode.
@@ -1493,7 +1506,7 @@ bool mpu6500GetInterruptMode()
  */
 void mpu6500SetInterruptMode(bool mode)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_LEVEL_BIT, mode);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_LEVEL_BIT, mode);
 }
 /** Get interrupt drive mode.
  * Will be set 0 for push-pull, 1 for open-drain.
@@ -1503,7 +1516,7 @@ void mpu6500SetInterruptMode(bool mode)
  */
 bool mpu6500GetInterruptDrive()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_OPEN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_OPEN_BIT, buffer);
   return buffer[0];
 }
 /** Set interrupt drive mode.
@@ -1514,7 +1527,7 @@ bool mpu6500GetInterruptDrive()
  */
 void mpu6500SetInterruptDrive(bool drive)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_OPEN_BIT, drive);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_OPEN_BIT, drive);
 }
 /** Get interrupt latch mode.
  * Will be set 0 for 50us-pulse, 1 for latch-until-int-cleared.
@@ -1524,7 +1537,7 @@ void mpu6500SetInterruptDrive(bool drive)
  */
 bool mpu6500GetInterruptLatch()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_LATCH_INT_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_LATCH_INT_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set interrupt latch mode.
@@ -1535,7 +1548,7 @@ bool mpu6500GetInterruptLatch()
  */
 void mpu6500SetInterruptLatch(bool latch)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_LATCH_INT_EN_BIT, latch);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_LATCH_INT_EN_BIT, latch);
 }
 /** Get interrupt latch clear mode.
  * Will be set 0 for status-read-only, 1 for any-register-read.
@@ -1545,7 +1558,7 @@ void mpu6500SetInterruptLatch(bool latch)
  */
 bool mpu6500GetInterruptLatchClear()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_RD_CLEAR_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_RD_CLEAR_BIT, buffer);
   return buffer[0];
 }
 /** Set interrupt latch clear mode.
@@ -1556,7 +1569,7 @@ bool mpu6500GetInterruptLatchClear()
  */
 void mpu6500SetInterruptLatchClear(bool clear)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_RD_CLEAR_BIT, clear);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_INT_RD_CLEAR_BIT, clear);
 }
 /** Get FSYNC interrupt logic level mode.
  * @return Current FSYNC interrupt mode (0=active-high, 1=active-low)
@@ -1566,7 +1579,7 @@ void mpu6500SetInterruptLatchClear(bool clear)
  */
 bool mpu6500GetFSyncInterruptLevel()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_LEVEL_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_LEVEL_BIT, buffer);
   return buffer[0];
 }
 /** Set FSYNC interrupt logic level mode.
@@ -1577,7 +1590,7 @@ bool mpu6500GetFSyncInterruptLevel()
  */
 void mpu6500SetFSyncInterruptLevel(bool level)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_LEVEL_BIT, level);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_LEVEL_BIT, level);
 }
 /** Get FSYNC pin interrupt enabled setting.
  * Will be set 0 for disabled, 1 for enabled.
@@ -1587,7 +1600,7 @@ void mpu6500SetFSyncInterruptLevel(bool level)
  */
 bool mpu6500GetFSyncInterruptEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set FSYNC pin interrupt enabled setting.
@@ -1598,7 +1611,7 @@ bool mpu6500GetFSyncInterruptEnabled()
  */
 void mpu6500SetFSyncInterruptEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_FSYNC_INT_EN_BIT, enabled);
 }
 /** Get I2C bypass enabled status.
  * When this bit is equal to 1 and I2C_MST_EN (Register 106 bit[5]) is equal to
@@ -1613,7 +1626,7 @@ void mpu6500SetFSyncInterruptEnabled(bool enabled)
  */
 bool mpu6500GetI2CBypassEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_I2C_BYPASS_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_I2C_BYPASS_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set I2C bypass enabled status.
@@ -1629,7 +1642,7 @@ bool mpu6500GetI2CBypassEnabled()
  */
 void mpu6500SetI2CBypassEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_I2C_BYPASS_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_I2C_BYPASS_EN_BIT, enabled);
 }
 /** Get reference clock output enabled status.
  * When this bit is equal to 1, a reference clock output is provided at the
@@ -1642,7 +1655,7 @@ void mpu6500SetI2CBypassEnabled(bool enabled)
  */
 bool mpu6500GetClockOutputEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_CLKOUT_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_CLKOUT_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set reference clock output enabled status.
@@ -1656,7 +1669,7 @@ bool mpu6500GetClockOutputEnabled()
  */
 void mpu6500SetClockOutputEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_CLKOUT_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_PIN_CFG, MPU6500_INTCFG_CLKOUT_EN_BIT, enabled);
 }
 
 // INT_ENABLE register
@@ -1670,7 +1683,7 @@ void mpu6500SetClockOutputEnabled(bool enabled)
  **/
 uint8_t mpu6500GetIntEnabled()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_INT_ENABLE, buffer);
+  i2cdev_readByte(MPU6500_RA_INT_ENABLE, buffer);
   return buffer[0];
 }
 /** Set full interrupt enabled status.
@@ -1683,7 +1696,7 @@ uint8_t mpu6500GetIntEnabled()
  **/
 void mpu6500SetIntEnabled(uint8_t enabled)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_INT_ENABLE, enabled);
+  i2cdev_writeByte(MPU6500_RA_INT_ENABLE, enabled);
 }
 /** Get Free Fall interrupt enabled status.
  * Will be set 0 for disabled, 1 for enabled.
@@ -1693,7 +1706,7 @@ void mpu6500SetIntEnabled(uint8_t enabled)
  **/
 bool mpu6500GetIntFreefallEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FF_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FF_BIT, buffer);
   return buffer[0];
 }
 /** Set Free Fall interrupt enabled status.
@@ -1704,7 +1717,7 @@ bool mpu6500GetIntFreefallEnabled()
  **/
 void mpu6500SetIntFreefallEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FF_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FF_BIT, enabled);
 }
 /** Get Motion Detection interrupt enabled status.
  * Will be set 0 for disabled, 1 for enabled.
@@ -1714,7 +1727,7 @@ void mpu6500SetIntFreefallEnabled(bool enabled)
  **/
 bool mpu6500GetIntMotionEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_MOT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_MOT_BIT, buffer);
   return buffer[0];
 }
 /** Set Motion Detection interrupt enabled status.
@@ -1725,7 +1738,7 @@ bool mpu6500GetIntMotionEnabled()
  **/
 void mpu6500SetIntMotionEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_MOT_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_MOT_BIT, enabled);
 }
 /** Get Zero Motion Detection interrupt enabled status.
  * Will be set 0 for disabled, 1 for enabled.
@@ -1735,7 +1748,7 @@ void mpu6500SetIntMotionEnabled(bool enabled)
  **/
 bool mpu6500GetIntZeroMotionEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_ZMOT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_ZMOT_BIT, buffer);
   return buffer[0];
 }
 /** Set Zero Motion Detection interrupt enabled status.
@@ -1746,7 +1759,7 @@ bool mpu6500GetIntZeroMotionEnabled()
  **/
 void mpu6500SetIntZeroMotionEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_ZMOT_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_ZMOT_BIT, enabled);
 }
 /** Get FIFO Buffer Overflow interrupt enabled status.
  * Will be set 0 for disabled, 1 for enabled.
@@ -1756,7 +1769,7 @@ void mpu6500SetIntZeroMotionEnabled(bool enabled)
  **/
 bool mpu6500GetIntFIFOBufferOverflowEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FIFO_OFLOW_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FIFO_OFLOW_BIT, buffer);
   return buffer[0];
 }
 /** Set FIFO Buffer Overflow interrupt enabled status.
@@ -1767,7 +1780,7 @@ bool mpu6500GetIntFIFOBufferOverflowEnabled()
  **/
 void mpu6500SetIntFIFOBufferOverflowEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FIFO_OFLOW_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_FIFO_OFLOW_BIT, enabled);
 }
 /** Get I2C Master interrupt enabled status.
  * This enables any of the I2C Master interrupt sources to generate an
@@ -1778,7 +1791,7 @@ void mpu6500SetIntFIFOBufferOverflowEnabled(bool enabled)
  **/
 bool mpu6500GetIntI2CMasterEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_I2C_MST_INT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_I2C_MST_INT_BIT, buffer);
   return buffer[0];
 }
 /** Set I2C Master interrupt enabled status.
@@ -1789,7 +1802,7 @@ bool mpu6500GetIntI2CMasterEnabled()
  **/
 void mpu6500SetIntI2CMasterEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_I2C_MST_INT_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_I2C_MST_INT_BIT, enabled);
 }
 /** Get Data Ready interrupt enabled setting.
  * This event occurs each time a write operation to all of the sensor registers
@@ -1800,7 +1813,7 @@ void mpu6500SetIntI2CMasterEnabled(bool enabled)
  */
 bool mpu6500GetIntDataReadyEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DATA_RDY_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DATA_RDY_BIT, buffer);
   return buffer[0];
 }
 /** Set Data Ready interrupt enabled status.
@@ -1811,7 +1824,7 @@ bool mpu6500GetIntDataReadyEnabled()
  */
 void mpu6500SetIntDataReadyEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DATA_RDY_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DATA_RDY_BIT, enabled);
 }
 
 // INT_STATUS register
@@ -1825,7 +1838,7 @@ void mpu6500SetIntDataReadyEnabled(bool enabled)
  */
 uint8_t mpu6500GetIntStatus()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_INT_STATUS, buffer);
+  i2cdev_readByte(MPU6500_RA_INT_STATUS, buffer);
   return buffer[0];
 }
 /** Get Free Fall interrupt status.
@@ -1837,7 +1850,7 @@ uint8_t mpu6500GetIntStatus()
  */
 bool mpu6500GetIntFreefallStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_FF_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_FF_BIT, buffer);
   return buffer[0];
 }
 /** Get Motion Detection interrupt status.
@@ -1849,7 +1862,7 @@ bool mpu6500GetIntFreefallStatus()
  */
 bool mpu6500GetIntMotionStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_MOT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_MOT_BIT, buffer);
   return buffer[0];
 }
 /** Get Zero Motion Detection interrupt status.
@@ -1861,7 +1874,7 @@ bool mpu6500GetIntMotionStatus()
  */
 bool mpu6500GetIntZeroMotionStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_ZMOT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_ZMOT_BIT, buffer);
   return buffer[0];
 }
 /** Get FIFO Buffer Overflow interrupt status.
@@ -1873,7 +1886,7 @@ bool mpu6500GetIntZeroMotionStatus()
  */
 bool mpu6500GetIntFIFOBufferOverflowStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_FIFO_OFLOW_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_FIFO_OFLOW_BIT, buffer);
   return buffer[0];
 }
 /** Get I2C Master interrupt status.
@@ -1886,7 +1899,7 @@ bool mpu6500GetIntFIFOBufferOverflowStatus()
  */
 bool mpu6500GetIntI2CMasterStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_I2C_MST_INT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_I2C_MST_INT_BIT, buffer);
   return buffer[0];
 }
 /** Get Data Ready interrupt status.
@@ -1898,7 +1911,7 @@ bool mpu6500GetIntI2CMasterStatus()
  */
 bool mpu6500GetIntDataReadyStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_DATA_RDY_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_DATA_RDY_BIT, buffer);
   return buffer[0];
 }
 
@@ -1940,7 +1953,7 @@ void mpu6500GetMotion9(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16
  */
 void mpu6500GetMotion6(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz)
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_XOUT_H, 14, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_XOUT_H, 14, buffer);
   *ax = (((int16_t) buffer[0]) << 8) | buffer[1];
   *ay = (((int16_t) buffer[2]) << 8) | buffer[3];
   *az = (((int16_t) buffer[4]) << 8) | buffer[5];
@@ -1986,7 +1999,7 @@ void mpu6500GetMotion6(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16
  */
 void mpu6500GetAcceleration(int16_t* x, int16_t* y, int16_t* z)
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_XOUT_H, 6, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_XOUT_H, 6, buffer);
   *x = (((int16_t) buffer[0]) << 8) | buffer[1];
   *y = (((int16_t) buffer[2]) << 8) | buffer[3];
   *z = (((int16_t) buffer[4]) << 8) | buffer[5];
@@ -1998,7 +2011,7 @@ void mpu6500GetAcceleration(int16_t* x, int16_t* y, int16_t* z)
  */
 int16_t mpu6500GetAccelerationX()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_XOUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_XOUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 /** Get Y-axis accelerometer reading.
@@ -2008,7 +2021,7 @@ int16_t mpu6500GetAccelerationX()
  */
 int16_t mpu6500GetAccelerationY()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_YOUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_YOUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 /** Get Z-axis accelerometer reading.
@@ -2018,7 +2031,7 @@ int16_t mpu6500GetAccelerationY()
  */
 int16_t mpu6500GetAccelerationZ()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_ACCEL_ZOUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ACCEL_ZOUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 
@@ -2030,7 +2043,7 @@ int16_t mpu6500GetAccelerationZ()
  */
 int16_t mpu6500GetTemperature()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_TEMP_OUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_TEMP_OUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 
@@ -2070,7 +2083,7 @@ int16_t mpu6500GetTemperature()
  */
 void mpu6500GetRotation(int16_t* x, int16_t* y, int16_t* z)
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_GYRO_XOUT_H, 6, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_XOUT_H, 6, buffer);
   *x = (((int16_t) buffer[0]) << 8) | buffer[1];
   *y = (((int16_t) buffer[2]) << 8) | buffer[3];
   *z = (((int16_t) buffer[4]) << 8) | buffer[5];
@@ -2082,7 +2095,7 @@ void mpu6500GetRotation(int16_t* x, int16_t* y, int16_t* z)
  */
 int16_t mpu6500GetRotationX()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_GYRO_XOUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_XOUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 /** Get Y-axis gyroscope reading.
@@ -2092,7 +2105,7 @@ int16_t mpu6500GetRotationX()
  */
 int16_t mpu6500GetRotationY()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_GYRO_YOUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_YOUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 /** Get Z-axis gyroscope reading.
@@ -2102,7 +2115,7 @@ int16_t mpu6500GetRotationY()
  */
 int16_t mpu6500GetRotationZ()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_GYRO_ZOUT_H, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_GYRO_ZOUT_H, 2, buffer);
   return (((int16_t) buffer[0]) << 8) | buffer[1];
 }
 
@@ -2184,7 +2197,7 @@ int16_t mpu6500GetRotationZ()
  */
 uint8_t mpu6500GetExternalSensorByte(int position)
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_EXT_SENS_DATA_00 + position, buffer);
+  i2cdev_readByte(MPU6500_RA_EXT_SENS_DATA_00 + position, buffer);
   return buffer[0];
 }
 /** Read word (2 bytes) from external sensor data registers.
@@ -2194,7 +2207,7 @@ uint8_t mpu6500GetExternalSensorByte(int position)
  */
 uint16_t mpu6500GetExternalSensorWord(int position)
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_EXT_SENS_DATA_00 + position, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_EXT_SENS_DATA_00 + position, 2, buffer);
   return (((uint16_t) buffer[0]) << 8) | buffer[1];
 }
 /** Read double word (4 bytes) from external sensor data registers.
@@ -2204,7 +2217,7 @@ uint16_t mpu6500GetExternalSensorWord(int position)
  */
 uint32_t mpu6500GetExternalSensorDWord(int position)
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_EXT_SENS_DATA_00 + position, 4, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_EXT_SENS_DATA_00 + position, 4, buffer);
   return (((uint32_t) buffer[0]) << 24) | (((uint32_t) buffer[1]) << 16)
       | (((uint16_t) buffer[2]) << 8) | buffer[3];
 }
@@ -2218,7 +2231,7 @@ uint32_t mpu6500GetExternalSensorDWord(int position)
  */
 bool mpu6500GetXNegMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_XNEG_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_XNEG_BIT, buffer);
   return buffer[0];
 }
 /** Get X-axis positive motion detection interrupt status.
@@ -2228,7 +2241,7 @@ bool mpu6500GetXNegMotionDetected()
  */
 bool mpu6500GetXPosMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_XPOS_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_XPOS_BIT, buffer);
   return buffer[0];
 }
 /** Get Y-axis negative motion detection interrupt status.
@@ -2238,7 +2251,7 @@ bool mpu6500GetXPosMotionDetected()
  */
 bool mpu6500GetYNegMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_YNEG_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_YNEG_BIT, buffer);
   return buffer[0];
 }
 /** Get Y-axis positive motion detection interrupt status.
@@ -2248,7 +2261,7 @@ bool mpu6500GetYNegMotionDetected()
  */
 bool mpu6500GetYPosMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_YPOS_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_YPOS_BIT, buffer);
   return buffer[0];
 }
 /** Get Z-axis negative motion detection interrupt status.
@@ -2258,7 +2271,7 @@ bool mpu6500GetYPosMotionDetected()
  */
 bool mpu6500GetZNegMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_ZNEG_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_ZNEG_BIT, buffer);
   return buffer[0];
 }
 /** Get Z-axis positive motion detection interrupt status.
@@ -2268,7 +2281,7 @@ bool mpu6500GetZNegMotionDetected()
  */
 bool mpu6500GetZPosMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_ZPOS_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_ZPOS_BIT, buffer);
   return buffer[0];
 }
 /** Get zero motion detection interrupt status.
@@ -2278,7 +2291,7 @@ bool mpu6500GetZPosMotionDetected()
  */
 bool mpu6500GetZeroMotionDetected()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_ZRMOT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_STATUS, MPU6500_MOTION_MOT_ZRMOT_BIT, buffer);
   return buffer[0];
 }
 
@@ -2296,7 +2309,7 @@ void mpu6500SetSlaveOutputByte(uint8_t num, uint8_t data)
 {
   if (num > 3)
     return;
-  i2cdev_writeByte(devAddr, MPU6500_RA_I2C_SLV0_DO + num, data);
+  i2cdev_writeByte(MPU6500_RA_I2C_SLV0_DO + num, data);
 }
 
 // I2C_MST_DELAY_CTRL register
@@ -2311,7 +2324,7 @@ void mpu6500SetSlaveOutputByte(uint8_t num, uint8_t data)
  */
 bool mpu6500GetExternalShadowDelayEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_DELAY_CTRL, MPU6500_DELAYCTRL_DELAY_ES_SHADOW_BIT,
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_DELAY_CTRL, MPU6500_DELAYCTRL_DELAY_ES_SHADOW_BIT,
       buffer);
   return buffer[0];
 }
@@ -2323,7 +2336,7 @@ bool mpu6500GetExternalShadowDelayEnabled()
  */
 void mpu6500SetExternalShadowDelayEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_MST_DELAY_CTRL,
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_DELAY_CTRL,
       MPU6500_DELAYCTRL_DELAY_ES_SHADOW_BIT, enabled);
 }
 /** Get slave delay enabled status.
@@ -2349,7 +2362,7 @@ bool mpu6500GetSlaveDelayEnabled(uint8_t num)
   // MPU6500_DELAYCTRL_I2C_SLV4_DLY_EN_BIT is 4, SLV3 is 3, etc.
   if (num > 4)
     return 0;
-  i2cdev_readBit(devAddr, MPU6500_RA_I2C_MST_DELAY_CTRL, num, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_DELAY_CTRL, num, buffer);
   return buffer[0];
 }
 /** Set slave delay enabled status.
@@ -2360,7 +2373,7 @@ bool mpu6500GetSlaveDelayEnabled(uint8_t num)
  */
 void mpu6500SetSlaveDelayEnabled(uint8_t num, bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_I2C_MST_DELAY_CTRL, num, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_I2C_MST_DELAY_CTRL, num, enabled);
 }
 
 // SIGNAL_PATH_RESET register
@@ -2373,7 +2386,7 @@ void mpu6500SetSlaveDelayEnabled(uint8_t num, bool enabled)
  */
 void mpu6500ResetGyroscopePath()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_SIGNAL_PATH_RESET, MPU6500_PATHRESET_GYRO_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_SIGNAL_PATH_RESET, MPU6500_PATHRESET_GYRO_RESET_BIT, 1);
 }
 /** Reset accelerometer signal path.
  * The reset will revert the signal path analog to digital converters and
@@ -2383,7 +2396,7 @@ void mpu6500ResetGyroscopePath()
  */
 void mpu6500ResetAccelerometerPath()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_SIGNAL_PATH_RESET, MPU6500_PATHRESET_ACCEL_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_SIGNAL_PATH_RESET, MPU6500_PATHRESET_ACCEL_RESET_BIT, 1);
 }
 /** Reset temperature sensor signal path.
  * The reset will revert the signal path analog to digital converters and
@@ -2393,7 +2406,7 @@ void mpu6500ResetAccelerometerPath()
  */
 void mpu6500ResetTemperaturePath()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_SIGNAL_PATH_RESET, MPU6500_PATHRESET_TEMP_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_SIGNAL_PATH_RESET, MPU6500_PATHRESET_TEMP_RESET_BIT, 1);
 }
 
 // MOT_DETECT_CTRL register
@@ -2414,7 +2427,7 @@ void mpu6500ResetTemperaturePath()
  */
 uint8_t mpu6500GetAccelerometerPowerOnDelay()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_ACCEL_ON_DELAY_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_ACCEL_ON_DELAY_BIT,
       MPU6500_DETECT_ACCEL_ON_DELAY_LENGTH, buffer);
   return buffer[0];
 }
@@ -2426,7 +2439,7 @@ uint8_t mpu6500GetAccelerometerPowerOnDelay()
  */
 void mpu6500SetAccelerometerPowerOnDelay(uint8_t delay)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_ACCEL_ON_DELAY_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_ACCEL_ON_DELAY_BIT,
       MPU6500_DETECT_ACCEL_ON_DELAY_LENGTH, delay);
 }
 /** Get Free Fall detection counter decrement configuration.
@@ -2457,7 +2470,7 @@ void mpu6500SetAccelerometerPowerOnDelay(uint8_t delay)
  */
 uint8_t mpu6500GetFreefallDetectionCounterDecrement()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_FF_COUNT_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_FF_COUNT_BIT,
       MPU6500_DETECT_FF_COUNT_LENGTH, buffer);
   return buffer[0];
 }
@@ -2469,7 +2482,7 @@ uint8_t mpu6500GetFreefallDetectionCounterDecrement()
  */
 void mpu6500SetFreefallDetectionCounterDecrement(uint8_t decrement)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_FF_COUNT_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_FF_COUNT_BIT,
       MPU6500_DETECT_FF_COUNT_LENGTH, decrement);
 }
 /** Get Motion detection counter decrement configuration.
@@ -2497,7 +2510,7 @@ void mpu6500SetFreefallDetectionCounterDecrement(uint8_t decrement)
  */
 uint8_t mpu6500GetMotionDetectionCounterDecrement()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_MOT_COUNT_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_MOT_COUNT_BIT,
       MPU6500_DETECT_MOT_COUNT_LENGTH, buffer);
   return buffer[0];
 }
@@ -2509,7 +2522,7 @@ uint8_t mpu6500GetMotionDetectionCounterDecrement()
  */
 void mpu6500SetMotionDetectionCounterDecrement(uint8_t decrement)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_MOT_COUNT_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MOT_DETECT_CTRL, MPU6500_DETECT_MOT_COUNT_BIT,
       MPU6500_DETECT_MOT_COUNT_LENGTH, decrement);
 }
 
@@ -2525,7 +2538,7 @@ void mpu6500SetMotionDetectionCounterDecrement(uint8_t decrement)
  */
 bool mpu6500GetFIFOEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_FIFO_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_FIFO_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set FIFO enabled status.
@@ -2536,7 +2549,7 @@ bool mpu6500GetFIFOEnabled()
  */
 void mpu6500SetFIFOEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_FIFO_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_FIFO_EN_BIT, enabled);
 }
 /** Get I2C Master Mode enabled status.
  * When this mode is enabled, the MPU-60X0 acts as the I2C Master to the
@@ -2551,7 +2564,7 @@ void mpu6500SetFIFOEnabled(bool enabled)
  */
 bool mpu6500GetI2CMasterModeEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_MST_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_MST_EN_BIT, buffer);
   return buffer[0];
 }
 /** Set I2C Master Mode enabled status.
@@ -2562,7 +2575,7 @@ bool mpu6500GetI2CMasterModeEnabled()
  */
 void mpu6500SetI2CMasterModeEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_MST_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_MST_EN_BIT, enabled);
 }
 /** Switch from I2C to SPI mode (MPU-6000 only)
  * If this is set, the primary SPI interface will be enabled in place of the
@@ -2570,7 +2583,7 @@ void mpu6500SetI2CMasterModeEnabled(bool enabled)
  */
 void mpu6500SwitchSPIEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_IF_DIS_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_IF_DIS_BIT, enabled);
 }
 /** Reset the FIFO.
  * This bit resets the FIFO buffer when set to 1 while FIFO_EN equals 0. This
@@ -2580,7 +2593,7 @@ void mpu6500SwitchSPIEnabled(bool enabled)
  */
 void mpu6500ResetFIFO()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_FIFO_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_FIFO_RESET_BIT, 1);
 }
 /** Reset the I2C Master.
  * This bit resets the I2C Master when set to 1 while I2C_MST_EN equals 0.
@@ -2590,7 +2603,7 @@ void mpu6500ResetFIFO()
  */
 void mpu6500ResetI2CMaster()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_MST_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_I2C_MST_RESET_BIT, 1);
 }
 /** Reset all sensor registers and signal paths.
  * When set to 1, this bit resets the signal paths for all sensors (gyroscopes,
@@ -2606,7 +2619,7 @@ void mpu6500ResetI2CMaster()
  */
 void mpu6500ResetSensors()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_SIG_COND_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_SIG_COND_RESET_BIT, 1);
 }
 
 // PWR_MGMT_1 register
@@ -2618,7 +2631,7 @@ void mpu6500ResetSensors()
  */
 void mpu6500Reset()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_DEVICE_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_DEVICE_RESET_BIT, 1);
 }
 /** Get sleep mode status.
  * Setting the SLEEP bit in the register puts the device into very low power
@@ -2633,7 +2646,7 @@ void mpu6500Reset()
  */
 bool mpu6500GetSleepEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_SLEEP_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_SLEEP_BIT, buffer);
   return buffer[0];
 }
 /** Set sleep mode status.
@@ -2644,7 +2657,7 @@ bool mpu6500GetSleepEnabled()
  */
 void mpu6500SetSleepEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_SLEEP_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_SLEEP_BIT, enabled);
 }
 /** Get wake cycle enabled status.
  * When this bit is set to 1 and SLEEP is disabled, the MPU-60X0 will cycle
@@ -2656,7 +2669,7 @@ void mpu6500SetSleepEnabled(bool enabled)
  */
 bool mpu6500GetWakeCycleEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CYCLE_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CYCLE_BIT, buffer);
   return buffer[0];
 }
 /** Set wake cycle enabled status.
@@ -2667,7 +2680,7 @@ bool mpu6500GetWakeCycleEnabled()
  */
 void mpu6500SetWakeCycleEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CYCLE_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CYCLE_BIT, enabled);
 }
 /** Get temperature sensor enabled status.
  * Control the usage of the internal temperature sensor.
@@ -2682,7 +2695,7 @@ void mpu6500SetWakeCycleEnabled(bool enabled)
  */
 bool mpu6500GetTempSensorEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_TEMP_DIS_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_TEMP_DIS_BIT, buffer);
   return buffer[0] == 0; // 1 is actually disabled here
 }
 /** Set temperature sensor enabled status.
@@ -2698,7 +2711,7 @@ bool mpu6500GetTempSensorEnabled()
 void mpu6500SetTempSensorEnabled(bool enabled)
 {
   // 1 is actually disabled here
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_TEMP_DIS_BIT, !enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_TEMP_DIS_BIT, !enabled);
 }
 /** Get clock source setting.
  * @return Current clock source setting
@@ -2708,7 +2721,7 @@ void mpu6500SetTempSensorEnabled(bool enabled)
  */
 uint8_t mpu6500GetClockSource()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CLKSEL_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CLKSEL_BIT,
       MPU6500_PWR1_CLKSEL_LENGTH, buffer);
   return buffer[0];
 }
@@ -2744,7 +2757,7 @@ uint8_t mpu6500GetClockSource()
  */
 void mpu6500SetClockSource(uint8_t source)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CLKSEL_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_1, MPU6500_PWR1_CLKSEL_BIT,
       MPU6500_PWR1_CLKSEL_LENGTH, source);
 }
 
@@ -2775,7 +2788,7 @@ void mpu6500SetClockSource(uint8_t source)
  */
 uint8_t mpu6500GetWakeFrequency()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_LP_WAKE_CTRL_BIT,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_LP_WAKE_CTRL_BIT,
       MPU6500_PWR2_LP_WAKE_CTRL_LENGTH, buffer);
   return buffer[0];
 }
@@ -2785,7 +2798,7 @@ uint8_t mpu6500GetWakeFrequency()
  */
 void mpu6500SetWakeFrequency(uint8_t frequency)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_LP_WAKE_CTRL_BIT,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_LP_WAKE_CTRL_BIT,
       MPU6500_PWR2_LP_WAKE_CTRL_LENGTH, frequency);
 }
 
@@ -2797,7 +2810,7 @@ void mpu6500SetWakeFrequency(uint8_t frequency)
  */
 bool mpu6500GetStandbyXAccelEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XA_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XA_BIT, buffer);
   return buffer[0];
 }
 /** Set X-axis accelerometer standby enabled status.
@@ -2808,7 +2821,7 @@ bool mpu6500GetStandbyXAccelEnabled()
  */
 void mpu6500SetStandbyXAccelEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XA_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XA_BIT, enabled);
 }
 /** Get Y-axis accelerometer standby enabled status.
  * If enabled, the Y-axis will not gather or report data (or use power).
@@ -2818,7 +2831,7 @@ void mpu6500SetStandbyXAccelEnabled(bool enabled)
  */
 bool mpu6500GetStandbyYAccelEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YA_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YA_BIT, buffer);
   return buffer[0];
 }
 /** Set Y-axis accelerometer standby enabled status.
@@ -2829,7 +2842,7 @@ bool mpu6500GetStandbyYAccelEnabled()
  */
 void mpu6500SetStandbyYAccelEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YA_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YA_BIT, enabled);
 }
 /** Get Z-axis accelerometer standby enabled status.
  * If enabled, the Z-axis will not gather or report data (or use power).
@@ -2839,7 +2852,7 @@ void mpu6500SetStandbyYAccelEnabled(bool enabled)
  */
 bool mpu6500GetStandbyZAccelEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZA_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZA_BIT, buffer);
   return buffer[0];
 }
 /** Set Z-axis accelerometer standby enabled status.
@@ -2850,7 +2863,7 @@ bool mpu6500GetStandbyZAccelEnabled()
  */
 void mpu6500SetStandbyZAccelEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZA_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZA_BIT, enabled);
 }
 /** Get X-axis gyroscope standby enabled status.
  * If enabled, the X-axis will not gather or report data (or use power).
@@ -2860,7 +2873,7 @@ void mpu6500SetStandbyZAccelEnabled(bool enabled)
  */
 bool mpu6500GetStandbyXGyroEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XG_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XG_BIT, buffer);
   return buffer[0];
 }
 /** Set X-axis gyroscope standby enabled status.
@@ -2871,7 +2884,7 @@ bool mpu6500GetStandbyXGyroEnabled()
  */
 void mpu6500SetStandbyXGyroEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XG_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_XG_BIT, enabled);
 }
 /** Get Y-axis gyroscope standby enabled status.
  * If enabled, the Y-axis will not gather or report data (or use power).
@@ -2881,7 +2894,7 @@ void mpu6500SetStandbyXGyroEnabled(bool enabled)
  */
 bool mpu6500GetStandbyYGyroEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YG_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YG_BIT, buffer);
   return buffer[0];
 }
 /** Set Y-axis gyroscope standby enabled status.
@@ -2892,7 +2905,7 @@ bool mpu6500GetStandbyYGyroEnabled()
  */
 void mpu6500SetStandbyYGyroEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YG_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_YG_BIT, enabled);
 }
 /** Get Z-axis gyroscope standby enabled status.
  * If enabled, the Z-axis will not gather or report data (or use power).
@@ -2902,7 +2915,7 @@ void mpu6500SetStandbyYGyroEnabled(bool enabled)
  */
 bool mpu6500GetStandbyZGyroEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZG_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZG_BIT, buffer);
   return buffer[0];
 }
 /** Set Z-axis gyroscope standby enabled status.
@@ -2913,7 +2926,7 @@ bool mpu6500GetStandbyZGyroEnabled()
  */
 void mpu6500SetStandbyZGyroEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZG_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_PWR_MGMT_2, MPU6500_PWR2_STBY_ZG_BIT, enabled);
 }
 
 // FIFO_COUNT* registers
@@ -2927,7 +2940,7 @@ void mpu6500SetStandbyZGyroEnabled(bool enabled)
  */
 uint16_t mpu6500GetFIFOCount()
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_FIFO_COUNTH, 2, buffer);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_COUNTH, 2, buffer);
   return (((uint16_t) buffer[0]) << 8) | buffer[1];
 }
 
@@ -2960,12 +2973,12 @@ uint16_t mpu6500GetFIFOCount()
  */
 uint8_t mpu6500GetFIFOByte()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_FIFO_R_W, buffer);
+  i2cdev_readByte(MPU6500_RA_FIFO_R_W, buffer);
   return buffer[0];
 }
 void mpu6500GetFIFOBytes(uint8_t *data, uint8_t length)
 {
-  i2cdev_readBytes(devAddr, MPU6500_RA_FIFO_R_W, length, data);
+  i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_FIFO_R_W, length, data);
 }
 /** Write byte to FIFO buffer.
  * @see getFIFOByte()
@@ -2973,7 +2986,7 @@ void mpu6500GetFIFOBytes(uint8_t *data, uint8_t length)
  */
 void mpu6500SetFIFOByte(uint8_t data)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_FIFO_R_W, data);
+  i2cdev_writeByte(MPU6500_RA_FIFO_R_W, data);
 }
 
 // WHO_AM_I register
@@ -2987,7 +3000,7 @@ void mpu6500SetFIFOByte(uint8_t data)
  */
 uint8_t mpu6500GetDeviceID()
 {
-  i2cdev_readBits(devAddr, MPU6500_RA_WHO_AM_I, MPU6500_WHO_AM_I_BIT, MPU6500_WHO_AM_I_LENGTH,
+  i2cdev_readBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_WHO_AM_I, MPU6500_WHO_AM_I_BIT, MPU6500_WHO_AM_I_LENGTH,
       buffer);
   return buffer[0];
 }
@@ -3002,7 +3015,7 @@ uint8_t mpu6500GetDeviceID()
  */
 void mpu6500SetDeviceID(uint8_t id)
 {
-  i2cdev_writeBits(devAddr, MPU6500_RA_WHO_AM_I, MPU6500_WHO_AM_I_BIT, MPU6500_WHO_AM_I_LENGTH,
+  i2cdev_writeBits(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_WHO_AM_I, MPU6500_WHO_AM_I_BIT, MPU6500_WHO_AM_I_LENGTH,
       id);
 }
 
@@ -3011,132 +3024,132 @@ void mpu6500SetDeviceID(uint8_t id)
 // XG_OFFS_USR* registers
 int16_t mpu6500GetXGyroOffsetUser(void) {
 		uint8_t data[2];
-    i2cdev_readBytes(devAddr, MPU6500_RA_XG_OFFS_USRL, 2, data);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_XG_OFFS_USRL, 2, data);
     return ((data[1] << 8) | data[0]);
 }
 void mpu6500SetXGyroOffsetUser(int16_t offset) {
     uint8_t data[2];
 		data[0] = (uint8_t)offset;
 		data[1] = (uint8_t)(offset >> 8);
-		i2cdev_writeBytes(devAddr, MPU6500_RA_XG_OFFS_USRL, 2, data);
+		i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_XG_OFFS_USRL, 2, data);
 }
 
 // YG_OFFS_USR* register
 int16_t mpu6500GetYGyroOffsetUser(void) {
     uint8_t data[2];
-    i2cdev_readBytes(devAddr, MPU6500_RA_YG_OFFS_USRL, 2, data);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_YG_OFFS_USRL, 2, data);
     return ((data[1] << 8) | data[0]);
 }
 void mpu6500SetYGyroOffsetUser(int16_t offset) {
     uint8_t data[2];
 		data[0] = (uint8_t)offset;
 		data[1] = (uint8_t)(offset >> 8);
-		i2cdev_writeBytes(devAddr, MPU6500_RA_YG_OFFS_USRL, 2, data);
+		i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_YG_OFFS_USRL, 2, data);
 }
 
 // ZG_OFFS_USR* register
 int16_t mpu6500GetZGyroOffsetUser(void) {
     uint8_t data[2];
-    i2cdev_readBytes(devAddr, MPU6500_RA_ZG_OFFS_USRL, 2, data);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ZG_OFFS_USRL, 2, data);
     return ((data[1] << 8) | data[0]);
 }
 void mpu6500SetZGyroOffsetUser(int16_t offset) {
     uint8_t data[2];
 		data[0] = (uint8_t)offset;
 		data[1] = (uint8_t)(offset >> 8);
-		i2cdev_writeBytes(devAddr, MPU6500_RA_ZG_OFFS_USRL, 2, data);
+		i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ZG_OFFS_USRL, 2, data);
 }
 
 // XA_OFFS_* registers
 int16_t mpu6500GetXAccelOffset(void) {
 		uint8_t data[2];
-    i2cdev_readBytes(devAddr, MPU6500_RA_XA_OFFSET_L, 2, data);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_XA_OFFSET_L, 2, data);
     return ((data[1] << 8) | data[0]);
 }
 void mpu6500SetXAccelOffset(int16_t offset) {
 		uint8_t data[2];
 		data[0] = (uint8_t)offset;
 		data[1] = (uint8_t)(offset >> 8);
-		i2cdev_writeBytes(devAddr, MPU6500_RA_XA_OFFSET_L, 2, data);
+		i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_XA_OFFSET_L, 2, data);
 }
 
 // YA_OFFS_* register
 int16_t mpu6500GetYAccelOffset(void) {
 		uint8_t data[2];
-    i2cdev_readBytes(devAddr, MPU6500_RA_YA_OFFSET_L, 2, data);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_YA_OFFSET_L, 2, data);
     return ((data[1] << 8) | data[0]);
 }
 void mpu6500SetYAccelOffset(int16_t offset) {
 		uint8_t data[2];
 		data[0] = (uint8_t)offset;
 		data[1] = (uint8_t)(offset >> 8);
-		i2cdev_writeBytes(devAddr, MPU6500_RA_YA_OFFSET_L, 2, data);
+		i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_YA_OFFSET_L, 2, data);
 }
 
 // ZA_OFFS_* register
 int16_t mpu6500GetZAccelOffset(void) {
 		uint8_t data[2];
-    i2cdev_readBytes(devAddr, MPU6500_RA_ZA_OFFSET_L, 2, data);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ZA_OFFSET_L, 2, data);
     return ((data[1] << 8) | data[0]);
 }
 void mpu6500SetZAccelOffset(int16_t offset) {
 		uint8_t data[2];
 		data[0] = (uint8_t)offset;
 		data[1] = (uint8_t)(offset >> 8);
-		i2cdev_writeBytes(devAddr, MPU6500_RA_ZA_OFFSET_L, 2, data);
+		i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_ZA_OFFSET_L, 2, data);
 }
 
 // INT_ENABLE register (DMP functions)
 
 bool mpu6500GetIntPLLReadyEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_PLL_RDY_INT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_PLL_RDY_INT_BIT, buffer);
   return buffer[0];
 }
 void mpu6500SetIntPLLReadyEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_PLL_RDY_INT_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_PLL_RDY_INT_BIT, enabled);
 }
 bool mpu6500GetIntDMPEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DMP_INT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DMP_INT_BIT, buffer);
   return buffer[0];
 }
 void mpu6500SetIntDMPEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DMP_INT_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_ENABLE, MPU6500_INTERRUPT_DMP_INT_BIT, enabled);
 }
 
 // DMP_INT_STATUS
 
 bool mpu6500GetDMPInt5Status()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_5_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_5_BIT, buffer);
   return buffer[0];
 }
 bool mpu6500GetDMPInt4Status()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_4_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_4_BIT, buffer);
   return buffer[0];
 }
 bool mpu6500GetDMPInt3Status()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_3_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_3_BIT, buffer);
   return buffer[0];
 }
 bool mpu6500GetDMPInt2Status()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_2_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_2_BIT, buffer);
   return buffer[0];
 }
 bool mpu6500GetDMPInt1Status()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_1_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_1_BIT, buffer);
   return buffer[0];
 }
 bool mpu6500GetDMPInt0Status()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_0_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_DMP_INT_STATUS, MPU6500_DMPINT_0_BIT, buffer);
   return buffer[0];
 }
 
@@ -3144,12 +3157,12 @@ bool mpu6500GetDMPInt0Status()
 
 bool mpu6500GetIntPLLReadyStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_PLL_RDY_INT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_PLL_RDY_INT_BIT, buffer);
   return buffer[0];
 }
 bool mpu6500GetIntDMPStatus()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_DMP_INT_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_INT_STATUS, MPU6500_INTERRUPT_DMP_INT_BIT, buffer);
   return buffer[0];
 }
 
@@ -3157,16 +3170,16 @@ bool mpu6500GetIntDMPStatus()
 
 bool mpu6500GetDMPEnabled()
 {
-  i2cdev_readBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_DMP_EN_BIT, buffer);
+  i2cdev_readBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_DMP_EN_BIT, buffer);
   return buffer[0];
 }
 void mpu6500SetDMPEnabled(bool enabled)
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_DMP_EN_BIT, enabled);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_DMP_EN_BIT, enabled);
 }
 void mpu6500ResetDMP()
 {
-  i2cdev_writeBit(devAddr, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_DMP_RESET_BIT, 1);
+  i2cdev_writeBit(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_USER_CTRL, MPU6500_USERCTRL_DMP_RESET_BIT, 1);
 }
 
 // BANK_SEL register
@@ -3178,26 +3191,26 @@ void mpu6500SetMemoryBank(uint8_t bank, bool prefetchEnabled, bool userBank)
     bank |= 0x20;
   if (prefetchEnabled)
     bank |= 0x40;
-  i2cdev_writeByte(devAddr, MPU6500_RA_BANK_SEL, bank);
+  i2cdev_writeByte(MPU6500_RA_BANK_SEL, bank);
 }
 
 // MEM_START_ADDR register
 
 void mpu6500SetMemoryStartAddress(uint8_t address)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_MEM_START_ADDR, address);
+  i2cdev_writeByte(MPU6500_RA_MEM_START_ADDR, address);
 }
 
 // MEM_R_W register
 
 uint8_t mpu6500ReadMemoryByte()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_MEM_R_W, buffer);
+  i2cdev_readByte(MPU6500_RA_MEM_R_W, buffer);
   return buffer[0];
 }
 void mpu6500WriteMemoryByte(uint8_t data)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_MEM_R_W, data);
+  i2cdev_writeByte(MPU6500_RA_MEM_R_W, data);
 }
 void mpu6500ReadMemoryBlock(uint8_t *data, uint16_t dataSize, uint8_t bank, uint8_t address)
 {
@@ -3220,7 +3233,7 @@ void mpu6500ReadMemoryBlock(uint8_t *data, uint16_t dataSize, uint8_t bank, uint
       chunkSize = 256 - address;
 
     // read the chunk of data as specified
-    i2cdev_readBytes(devAddr, MPU6500_RA_MEM_R_W, chunkSize, data + i);
+    i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MEM_R_W, chunkSize, data + i);
 
     // increase byte index by [chunkSize]
     i += chunkSize;
@@ -3265,7 +3278,7 @@ bool mpu6500WriteMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t ban
     // write the chunk of data as specified
     progBuffer = (uint8_t *) data + i;
 
-    i2cdev_writeBytes(devAddr, MPU6500_RA_MEM_R_W, chunkSize, progBuffer);
+    i2cdev_writeBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MEM_R_W, chunkSize, progBuffer);
 
     // verify data if needed
     if (verify)
@@ -3273,7 +3286,7 @@ bool mpu6500WriteMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t ban
       uint32_t j;
       mpu6500SetMemoryBank(bank, false, false);
       mpu6500SetMemoryStartAddress(address);
-      i2cdev_readBytes(devAddr, MPU6500_RA_MEM_R_W, chunkSize, verifyBuffer);
+      i2cdev_readBytes(MPU6500_DEFAULT_ADDRESS, MPU6500_RA_MEM_R_W, chunkSize, verifyBuffer);
 
       for (j = 0; j < chunkSize; j++)
       {
@@ -3362,7 +3375,7 @@ bool mpu6500WriteDMPConfigurationSet(const uint8_t *data, uint16_t dataSize)
 				mpu6500SetIntZeroMotionEnabled(true);
 				mpu6500SetIntFIFOBufferOverflowEnabled(true);
 				mpu6500SetIntDMPEnabled(true);
-				//i2cdev_writeByte(devAddr, MPU6500_RA_INT_ENABLE, 0x32);
+				//i2cdev_writeByte(MPU6500_RA_INT_ENABLE, 0x32);
 				success = true;
 			}
 			else
@@ -3389,22 +3402,22 @@ bool mpu6500WriteProgDMPConfigurationSet(const uint8_t *data, uint16_t dataSize)
 
 uint8_t mpu6500GetDMPConfig1()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_DMP_CFG_1, buffer);
+  i2cdev_readByte(MPU6500_RA_DMP_CFG_1, buffer);
   return buffer[0];
 }
 void mpu6500SetDMPConfig1(uint8_t config)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_DMP_CFG_1, config);
+  i2cdev_writeByte(MPU6500_RA_DMP_CFG_1, config);
 }
 
 // DMP_CFG_2 register
 
 uint8_t mpu6500GetDMPConfig2()
 {
-  i2cdev_readByte(devAddr, MPU6500_RA_DMP_CFG_2, buffer);
+  i2cdev_readByte(MPU6500_RA_DMP_CFG_2, buffer);
   return buffer[0];
 }
 void mpu6500SetDMPConfig2(uint8_t config)
 {
-  i2cdev_writeByte(devAddr, MPU6500_RA_DMP_CFG_2, config);
+  i2cdev_writeByte(MPU6500_RA_DMP_CFG_2, config);
 }
